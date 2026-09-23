@@ -1,0 +1,60 @@
+[gd_scene format=4 uid="uid://ipj7vq8kwl3v"]
+
+[ext_resource type="Texture2D" uid="uid://sphygdpvujte" path="res://art/placeholder_tiles.png" id="1_f3sb7"]
+[ext_resource type="PackedScene" uid="uid://4n3gv2wu6qil" path="res://character.tscn" id="2_fj7yv"]
+[ext_resource type="PackedScene" path="res://enemy.tscn" id="3_enemy"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f3sb7"]
+texture = ExtResource("1_f3sb7")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, -16, 16, 16, 16, 16, -16)
+1:0/0 = 0
+1:0/0/physics_layer_1/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+1:0/0/physics_layer_1/polygon_0/one_way = true
+1:0/0/custom_data_0 = true
+2:0/0 = 0
+3:0/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_f3sb7"]
+tile_size = Vector2i(32, 32)
+physics_layer_0/collision_layer = 1
+physics_layer_1/collision_layer = 2
+physics_layer_1/collision_mask = 2
+custom_data_layer_0/name = "platform_through"
+custom_data_layer_0/type = 1
+sources/0 = SubResource("TileSetAtlasSource_f3sb7")
+
+[node name="World" type="Node2D" unique_id=215178377]
+
+[node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=554085805]
+position = Vector2(-3, 19)
+tile_map_data = PackedByteArray("AAD//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAFAAAAAAAAAAAAAAAFAAEAAAAAAAAAAAAFAAIAAAAAAAAAAAAFAAMAAAAAAAAAAAAFAAQAAAAAAAAAAAAGAAQAAAAAAAAAAAAHAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAJAAQAAAAAAAAAAAAKAAAAAAAAAAAAAAAGAAAAAAABAAAAAAAHAAAAAAABAAAAAAAIAAAAAAABAAAAAAAKAAQAAAAAAAAAAAAJAAAAAAABAAAAAAAKAAMAAAAAAAAAAAAKAAIAAAAAAAAAAAAKAAEAAAAAAAAAAAAKAP//AAAAAAAAAAAKAP7/AAAAAAAAAAALAP7/AAAAAAAAAAAMAP7/AAAAAAAAAAANAP7/AAAAAAAAAAAOAP7/AAAAAAAAAAAPAP7/AAAAAAAAAAAUAP7/AAAAAAAAAAAVAP7/AAAAAAAAAAAPAP//AAAAAAAAAAAPAAAAAAAAAAAAAAAQAAEAAAAAAAAAAAARAAEAAAAAAAAAAAASAAEAAAAAAAAAAAATAAEAAAAAAAAAAAAUAAEAAAAAAAAAAAAVAAEAAAAAAAAAAAAWAAEAAAAAAAAAAAAXAAEAAAAAAAAAAAAYAAEAAAAAAAAAAAATAP7/AAAAAAAAAAASAP7/AAABAAAAAAARAP7/AAABAAAAAAAQAP7/AAABAAAAAAAWAP7/AAABAAAAAAAXAP7/AAABAAAAAAAYAP7/AAABAAAAAAAZAP7/AAABAAAAAAAZAAEAAAAAAAAAAAAaAAEAAAAAAAAAAAAaAAAAAAAAAAAAAAAaAP//AAAAAAAAAAAaAP7/AAAAAAAAAAAaAP3/AAAAAAAAAAAaAPz/AAAAAAAAAAAaAPv/AAAAAAAAAAAaAPr/AAAAAAAAAAAUAPv/AAAAAAAAAAAVAPv/AAAAAAAAAAAWAPv/AAAAAAAAAAAXAPv/AAAAAAAAAAATAPv/AAAAAAAAAAA=")
+tile_set = SubResource("TileSet_f3sb7")
+
+[node name="CharacterBody2D" parent="." unique_id=1919862408 instance=ExtResource("2_fj7yv")]
+position = Vector2(53, -26)
+max_health = null
+speed = null
+jump_velocity = null
+wall_jump_velocity = null
+wall_slide_max_speed = null
+wall_jump_lock_time = null
+knockback = null
+knockback_time = null
+clinch_knockback = null
+
+[node name="Enemy" parent="." unique_id=1228443156 instance=ExtResource("3_enemy")]
+position = Vector2(253, -26)
+
+[node name="Enemy2" parent="." unique_id=1899553925 instance=ExtResource("3_enemy")]
+position = Vector2(458, -89)
+speed = 180.0
+
+[node name="Enemy3" parent="." unique_id=463203626 instance=ExtResource("3_enemy")]
+position = Vector2(618, -79)
+speed = 180.0
+
+[node name="Enemy4" parent="." unique_id=1536446468 instance=ExtResource("3_enemy")]
+position = Vector2(654, -185)
+speed = 180.0

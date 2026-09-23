@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://4n3gv2wu6qil"]
+
+[ext_resource type="Script" uid="uid://hi6ircguxcl3" path="res://scripts/character.gd" id="1_glpr6"]
+[ext_resource type="Script" uid="uid://c43k4ov0ap8xc" path="res://melee_attack.gd" id="2_pjt0s"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_kesq0"]
+radius = 8.0
+height = 26.0
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_kesq0"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_88d7v"]
+
+[node name="CharacterBody2D" type="CharacterBody2D" unique_id=1919862408]
+collision_layer = 8
+collision_mask = 3
+script = ExtResource("1_glpr6")
+
+[node name="MeleeAttack" type="Node2D" parent="." unique_id=911463422]
+script = ExtResource("2_pjt0s")
+hitbox_size = Vector2(70, 14)
+
+[node name="Collision" type="CollisionShape2D" parent="." unique_id=980286197]
+unique_name_in_owner = true
+shape = SubResource("CapsuleShape2D_kesq0")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=201788603]
+sprite_frames = SubResource("SpriteFrames_kesq0")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1315405262]
+position = Vector2(-2.3841858e-07, 1.1920929e-07)
+scale = Vector2(13, 20.375)
+texture = SubResource("PlaceholderTexture2D_88d7v")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1374019394]
+zoom = Vector2(2.01, 2.01)
+position_smoothing_enabled = true
+rotation_smoothing_enabled = true
+drag_vertical_enabled = true
+
+[node name="Label" type="Label" parent="." unique_id=1200435909]
+unique_name_in_owner = true
+offset_left = -11.0
+offset_top = -43.0
+offset_right = 29.0
+offset_bottom = -20.0
+scale = Vector2(0.46, 0.46)

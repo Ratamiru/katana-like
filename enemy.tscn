@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy.gd" id="1_enemy"]
+[ext_resource type="Script" uid="uid://c43k4ov0ap8xc" path="res://melee_attack.gd" id="2_melee"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_enemy"]
+radius = 8.0
+height = 26.0
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_enemy"]
+
+[node name="Enemy" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 3
+script = ExtResource("1_enemy")
+max_health = 20 # два удара игрока (damage = 10)
+speed = 180.0
+
+[node name="MeleeAttack" type="Node2D" parent="."]
+script = ExtResource("2_melee")
+reach = 20.0
+hitbox_size = Vector2(40, 14)
+active_time = 0.1
+cooldown = 0.8
+hit_mask = 8
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_enemy")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+self_modulate = Color(0.85, 0.2, 0.2, 1)
+scale = Vector2(13, 20.375)
+texture = SubResource("PlaceholderTexture2D_enemy")
