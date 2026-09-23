@@ -1,6 +1,10 @@
+class_name Enemy
 extends Fighter
 
-## Враг ближнего боя с примитивным AI:
+## Враг с примитивным AI. Сам по себе — ближний бой через MeleeAttack.
+## Другие типы (стрелок) наследуются и переопределяют _can_start_attack /
+## _perform_attack / _should_approach.
+##
 ## IDLE — стоит, пока не увидит игрока (в радиусе sight_range и без стен между ними);
 ## CHASE — бежит к игроку, перепрыгивает препятствия, спрыгивает с платформ, если игрок ниже,
 ##         и запрыгивает на платформу над собой, если игрок выше;
@@ -42,12 +46,12 @@ func _update_intent(delta: float) -> void:
 		State.CHASE:
 			if dist > lose_range:
 				state = State.IDLE
-			elif dist <= attack_range and melee_attack.can_attack():
+			elif dist <= attack_range and _can_start_attack():
 				state = State.ATTACK
 				_windup_left = attack_windup
 				_flash(Color.YELLOW, attack_windup)
 			else:
-				if absf(to_target.x) > attack_range * 0.5:
+				if _should_approach(to_target):
 					move_dir = signf(to_target.x)
 				if to_target.y > drop_height and is_on_drop_platform():
 					# Игрок ниже, а мы на one-way платформе — спрыгиваем за ним.
@@ -62,12 +66,27 @@ func _update_intent(delta: float) -> void:
 		State.ATTACK:
 			_windup_left -= delta
 			if _windup_left <= 0.0:
-				melee_attack.attack(to_target)
+				_perform_attack(to_target)
 				state = State.CHASE
 		State.STUNNED:
 			_stun_left -= delta
 			if _stun_left <= 0.0:
 				state = State.CHASE
+
+
+## Готов ли начать атаку (враг уже в attack_range).
+func _can_start_attack() -> bool:
+	return melee_attack.can_attack()
+
+
+## Сам удар после замаха. to_target — вектор до игрока.
+func _perform_attack(to_target: Vector2) -> void:
+	melee_attack.attack(to_target)
+
+
+## Надо ли подходить ближе (иначе стоит на месте в CHASE).
+func _should_approach(to_target: Vector2) -> bool:
+	return absf(to_target.x) > attack_range * 0.5
 
 
 func _can_see(target: Node2D) -> bool:

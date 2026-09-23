@@ -7,11 +7,15 @@ func _ready() -> void:
 	super()
 	add_to_group("player")
 	melee_attack.hit_landed.connect(_on_hit_landed)
+	melee_attack.deflected.connect(Juice.hit)
 	clinched.connect(func(_other: Fighter) -> void: Juice.clinch())
 
 
 func _on_hit_landed(target: Node) -> void:
-	if target is Fighter and target.is_dead:
+	# Замедление/тряска — только по бойцам. У пропов своя реакция (HitReaction).
+	if target is not Fighter:
+		return
+	if target.is_dead:
 		Juice.kill()
 	else:
 		Juice.hit()

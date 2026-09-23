@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" uid="uid://hi6ircguxcl3" path="res://scripts/character.gd" id="1_glpr6"]
 [ext_resource type="Script" uid="uid://c43k4ov0ap8xc" path="res://melee_attack.gd" id="2_pjt0s"]
+[ext_resource type="Script" path="res://scripts/hits/hit_effect.gd" id="h_eff"]
+[ext_resource type="PackedScene" path="res://effects/blood.tscn" id="h_blood"]
+[ext_resource type="PackedScene" path="res://effects/blood_kill.tscn" id="h_kill"]
+[ext_resource type="PackedScene" path="res://effects/sparks.tscn" id="h_sparks"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_kesq0"]
 radius = 8.0
@@ -15,10 +19,14 @@ height = 26.0
 collision_layer = 8
 collision_mask = 3
 script = ExtResource("1_glpr6")
+clinch_effect = ExtResource("h_sparks")
 
 [node name="MeleeAttack" type="Node2D" parent="." unique_id=911463422]
 script = ExtResource("2_pjt0s")
 hitbox_size = Vector2(70, 14)
+hit_mask = 20
+deflect_bullets = true
+deflect_effect = ExtResource("h_sparks")
 
 [node name="Collision" type="CollisionShape2D" parent="." unique_id=980286197]
 unique_name_in_owner = true
@@ -45,3 +53,12 @@ offset_top = -43.0
 offset_right = 29.0
 offset_bottom = -20.0
 scale = Vector2(0.46, 0.46)
+
+[node name="HitBlood" type="Node" parent="."]
+script = ExtResource("h_eff")
+effect = ExtResource("h_blood")
+
+[node name="HitBloodKill" type="Node" parent="."]
+script = ExtResource("h_eff")
+trigger = 2
+effect = ExtResource("h_kill")

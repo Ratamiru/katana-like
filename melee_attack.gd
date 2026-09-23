@@ -12,9 +12,15 @@ extends Node2D
 @export var active_time := 0.12             # сколько сек хитбокс реально может задеть цель
 @export var cooldown := 0.3                 # минимальный интервал между атаками
 @export var hit_mask := 0b0100              # физ. слои целей: 0b0100 — враги (слой 3), 0b1000 — игрок (слой 4)
+@export var deflect_bullets := false        # отбивать пули BulletWorld, летящие во владельца
+@export var deflect_speed_mult := 1.5       # во сколько раз быстрее летит отбитая пуля
+@export var deflect_color := Color.CYAN
+@export var deflect_padding := Vector2(24, 24) # насколько зона отражения больше хитбокса — чем больше, тем проще отбить
+@export var deflect_effect: PackedScene      # эффект в точке отбитой пули (искры)
 
 signal hit_landed(target: Node)
 signal clinched(target: Node)
+signal deflected # отбита хотя бы одна пуля за кадр
 
 var _can_attack := true
 var _cancelled := false # удар погашен клинчем — хитбокс больше никого не бьёт
@@ -75,11 +81,16 @@ func attack(direction := Vector2.ZERO) -> void:
 	_already_hit.clear()
 	_cancelled = false
 	_hitbox.monitoring = true
+	var bullets := BulletWorld.current
+	if deflect_bullets and bullets:
+		bullets.add_affector(self)
 
 	await get_tree().create_timer(active_time).timeout
 	if not is_instance_valid(self):
 		return
 	_hitbox.monitoring = false
+	if is_instance_valid(bullets):
+		bullets.remove_affector(self)
 
 	var rest: float = max(cooldown - active_time, 0.0)
 	if rest > 0.0:
@@ -87,6 +98,26 @@ func attack(direction := Vector2.ZERO) -> void:
 	if not is_instance_valid(self):
 		return
 	_can_attack = true
+
+
+## Аффектор BulletWorld: пока удар активен, пули в хитбоксе, летящие во владельца,
+## разворачиваются по направлению удара и начинают бить по hit_mask (как в Katana Zero).
+func affect_bullets(bullets: BulletWorld, _delta: float) -> void:
+	if not is_active():
+		return
+	var owner_layer: int = get_parent().collision_layer
+	var dir := Vector2.RIGHT.rotated(_hitbox.global_rotation)
+	var any := false
+	for i in bullets.query_rect(_hitbox.global_transform, hitbox_size + deflect_padding):
+		if (bullets.get_bullet_hit_mask(i) & owner_layer) == 0:
+			continue # пуля летит не в нас (или уже отбита)
+		bullets.set_bullet_velocity(i, dir * bullets.get_bullet_velocity(i).length() * deflect_speed_mult)
+		bullets.set_bullet_hit_mask(i, hit_mask)
+		bullets.set_bullet_color(i, deflect_color)
+		Juice.spawn_effect(deflect_effect, bullets.get_bullet_position(i), dir)
+		any = true
+	if any:
+		deflected.emit()
 
 
 func _try_hit(target: Node) -> void:
@@ -101,7 +132,13 @@ func _try_hit(target: Node) -> void:
 		clinched.emit(target)
 		return
 
+	var dir := Vector2.RIGHT.rotated(_hitbox.global_rotation)
+	var hit_pos: Vector2 = (target as Node2D).global_position if target is Node2D else _hitbox.global_position
+	var hit := HitInfo.make(attacker, target, hit_pos, dir, damage, &"melee")
 	if target.has_method("take_damage"):
 		target.take_damage(damage, global_position)
+	hit.killed = target.get("is_dead") == true
+	# Реакции цели (кровь, искры, свои реакции пропов). Работает и для целей без take_damage.
+	HitReaction.dispatch(target, hit)
 
 	hit_landed.emit(target)

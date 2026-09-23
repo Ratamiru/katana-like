@@ -24,6 +24,7 @@ const FLOOR_PROBE := 20.0 # длина луча вниз от центра дл�
 @export var knockback := Vector2(250.0, -150.0) # отбрасывание при получении удара
 @export var knockback_time := 0.2 # сек без управления после удара
 @export var clinch_knockback := Vector2(300.0, -120.0) # отбрасывание обоих при клинче
+@export var clinch_effect: PackedScene # эффект между бойцами при клинче (искры); берётся у любого из двух
 
 # Намерения на текущий кадр — выставляются в _update_intent().
 var move_dir := 0.0
@@ -36,7 +37,7 @@ var _control_lock := 0.0 # пока > 0, move_dir игнорируется (от
 var _flash_tween: Tween
 @onready var _half_height: float = ($Collision as CollisionShape2D).shape.get_rect().size.y * 0.5
 
-@onready var melee_attack: MeleeAttack = $MeleeAttack
+@onready var melee_attack: MeleeAttack = get_node_or_null("MeleeAttack") # может не быть (стрелок)
 
 
 func _ready() -> void:
@@ -124,14 +125,19 @@ func apply_knockback(from: Vector2, force: Vector2, lock_time := knockback_time)
 
 ## Идёт ли сейчас удар, который может столкнуться с чужим (клинч).
 func is_attacking() -> bool:
-	return melee_attack.is_active()
+	return melee_attack != null and melee_attack.is_active()
 
 
 ## Клинч: оба удара гасятся, урона нет, бойцов расталкивает.
 ## Вызывается MeleeAttack атакующего, когда его удар попал в атакующую цель.
 func clinch(other: Fighter) -> void:
-	melee_attack.cancel()
-	other.melee_attack.cancel()
+	if melee_attack:
+		melee_attack.cancel()
+	if other.melee_attack:
+		other.melee_attack.cancel()
+	var fx := clinch_effect if clinch_effect else other.clinch_effect
+	var mid := (global_position + other.global_position) * 0.5
+	Juice.spawn_effect(fx, mid, Vector2.UP)
 	_on_clinch(other)
 	other._on_clinch(self)
 

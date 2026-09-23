@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[sub_resource type="Gradient" id="Gradient_blood_kill"]
+offsets = PackedFloat32Array(0, 0.75, 1)
+colors = PackedColorArray(0.9, 0.05, 0.05, 1, 0.55, 0, 0, 1, 0.4, 0, 0, 0)
+
+[node name="BloodKill" type="CPUParticles2D"]
+emitting = false
+amount = 40
+lifetime = 0.9
+one_shot = true
+explosiveness = 1.0
+randomness = 0.4
+local_coords = false
+direction = Vector2(1, 0)
+spread = 55.0
+gravity = Vector2(0, 700)
+initial_velocity_min = 120.0
+initial_velocity_max = 380.0
+damping_min = 20.0
+damping_max = 80.0
+scale_amount_min = 1.5
+scale_amount_max = 4.0
+color_ramp = SubResource("Gradient_blood_kill")
