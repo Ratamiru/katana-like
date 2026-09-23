@@ -18,7 +18,7 @@ extends Node2D
 @export var deflect_padding := Vector2(24, 24) # насколько зона отражения больше хитбокса — чем больше, тем проще отбить
 @export var deflect_effect: PackedScene      # эффект в точке отбитой пули (искры)
 
-signal hit_landed(target: Node)
+signal hit_landed(hit: HitInfo) # попадание (в т.ч. заблокированное — см. hit.blocked)
 signal clinched(target: Node)
 signal deflected # отбита хотя бы одна пуля за кадр
 
@@ -136,9 +136,9 @@ func _try_hit(target: Node) -> void:
 	var hit_pos: Vector2 = (target as Node2D).global_position if target is Node2D else _hitbox.global_position
 	var hit := HitInfo.make(attacker, target, hit_pos, dir, damage, &"melee")
 	if target.has_method("take_damage"):
-		target.take_damage(damage, global_position)
+		hit.blocked = not target.take_damage(damage, global_position)
 	hit.killed = target.get("is_dead") == true
 	# Реакции цели (кровь, искры, свои реакции пропов). Работает и для целей без take_damage.
 	HitReaction.dispatch(target, hit)
 
-	hit_landed.emit(target)
+	hit_landed.emit(hit)

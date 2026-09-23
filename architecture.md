@@ -9,10 +9,17 @@
 | Путь | Назначение |
 |---|---|
 | `world.tscn` | Главная сцена: `TileMapLayer` уровня, игрок, враги, `BulletWorld` |
-| `character.tscn` | Игрок (`CharacterBody2D`), камера, компонент атаки |
+| `character.tscn` | Игрок (`CharacterBody2D`), камера, компонент атаки, `ShadowAbility` |
+| `shadow.tscn` | Тень — второе тело игрока (фиолетовая, полупрозрачная), `GrabAttack`, своя камера |
+| `enemy_armored.tscn` | Бронированный враг (серый, щит спереди) |
 | `enemy.tscn` | Враг ближнего боя (красный плейсхолдер), компонент атаки |
 | `scripts/fighter.gd` | `Fighter` — общий базовый класс бойца: движение, здоровье, смерть |
-| `scripts/character.gd` | Игрок (`extends Fighter`): намерения из инпута, атака в сторону мыши |
+| `scripts/player_pawn.gd` | `PlayerPawn` (`extends Fighter`) — тело, которым может управлять игрок; передача управления |
+| `scripts/character.gd` | Основное тело игрока (`extends PlayerPawn`): катана в сторону мыши |
+| `scripts/shadow.gd` | `Shadow` (`extends PlayerPawn`): тело-тень, на `attack` — захват |
+| `scripts/shadow_ability.gd` | `ShadowAbility` — компонент игрока: цикл тени (спавн, замедление, передача управления, кулдаун) |
+| `scripts/grab_attack.gd` | `GrabAttack` — компонент захвата (shape query, `target.grab(hold_time)`) |
+| `scripts/enemy_armored.gd` | Бронированный враг (`extends Enemy`): блок спереди, уязвим сзади |
 | `scripts/enemy.gd` | `Enemy` (`extends Fighter`): примитивный AI (IDLE → CHASE → ATTACK, STUNNED после клинча), по умолчанию ближний бой |
 | `enemy_shooter.tscn` | Стрелок (оранжевый плейсхолдер), без `MeleeAttack` |
 | `scripts/enemy_shooter.gd` | Стрелок (`extends Enemy`): держит дистанцию, стреляет через `BulletWorld` |
@@ -35,6 +42,7 @@
 | 3 (значение `4`) | Враги |
 | 4 (значение `8`) | Игрок |
 | 5 (значение `16`) | Пропы, которые можно ударить (пока нет) |
+| — | Тень: `collision_layer = 0` (её никто не видит и не бьёт), `collision_mask = 3` |
 
 - Игрок: `collision_layer = 8`, `collision_mask = 3`, его `MeleeAttack.hit_mask = 20` (бьёт врагов и пропы).
 - Враг: `collision_layer = 4`, `collision_mask = 3`, его `MeleeAttack.hit_mask = 8` (бьёт игрока).
@@ -48,7 +56,8 @@
 | `forward` / `backward` | D / A |
 | `jump` | Space |
 | `down` | S |
-| `attack` | ЛКМ |
+| `attack` | ЛКМ (действие текущего тела: катана / захват) |
+| `shadow` | ПКМ (выпустить тень / отменить) |
 
 ## Бойцы: `Fighter` (`scripts/fighter.gd`)
 
@@ -58,6 +67,11 @@
 - `jump_requested` — хочет прыгнуть в этом кадре (сбрасывается после обработки);
 - `drop_requested` — вместе с прыжком означает спрыгивание сквозь платформу.
 
+`facing` (±1) — куда смотрит боец: обновляется по знаку `move_dir`, враги ещё и разворачиваются к игроку (см. «Враг»). Нужен броне.
+
+`unscaled_time` — боец живёт в реальном времени: `delta` делится на `Engine.time_scale`, скорость перед `move_and_slide()` умножается на `1/time_scale` и после делится обратно. Используется тенью, чтобы она не замедлялась вместе с миром.
+
+`take_damage(amount, from) -> bool` — `true`, если урон прошёл; `false` — заблокирован (броня) или цель мертва.
 `_physics_process` (в базе), порядок:
 
 1. `_update_intent(delta)` — наследник выставляет намерения.
@@ -107,12 +121,43 @@
 | `knockback_time` | 0.2 с | Блокировка `move_dir` после удара/клинча |
 | `clinch_knockback` | (300, -120) | Расталкивание при клинче |
 
+## Управление телами: `PlayerPawn` (`scripts/player_pawn.gd`)
+
+Игрок может управлять несколькими телами (основное тело, тень). Управляемое тело **ровно одно**, его хранит статическая ссылка `PlayerPawn.possessed` — это «булеан без рассинхрона»: не бывает двух управляемых тел или ни одного.
+
+- `PlayerPawn.possess(pawn)` — передать управление: меняет `possessed`, включает и делает текущей `Camera2D` этого тела (`reset_smoothing`, чтобы не было проезда).
+- `is_possessed()` — `possessed == self`.
+- `_update_intent`: управляемое тело читает инпут (`backward/forward`, `jump`, `down`), остальные получают нулевые намерения — стоят, физика работает.
+- `_unhandled_input`: `attack` → `_primary_action()` только у управляемого тела. У каждого тела своё действие.
+- `_exit_tree`: если удаляется управляемое тело — `possessed = null`.
+
 ## Игрок (`scripts/character.gd`)
 
-- Добавляется в группу `player`, по ней его находят враги.
-- Сок: `melee_attack.hit_landed` → `Juice.hit()` (или `Juice.kill()`, если цель умерла); сигнал `clinched` → `Juice.clinch()`.
-- Намерения берутся из инпута; `attack` → `melee_attack.attack()` (к мыши).
+- `extends PlayerPawn`; в `_ready` добавляется в группу `player` (по ней его находят враги) и забирает управление себе (`possess(self)` — важно при перезагрузке уровня, т.к. static переживает её).
+- `_primary_action()` → `melee_attack.attack()` (к мыши).
+- Сок: `melee_attack.hit_landed(hit)` → по бойцу: `hit.blocked` → отдача игроку (`knockback × 0.6`) + `Juice.shake(0.2)`; `hit.killed` → `Juice.kill()`; иначе `Juice.hit()`. Сигнал `clinched` → `Juice.clinch()`.
 - `_die()` → перезапуск текущей сцены (временно).
+
+## Тень: `ShadowAbility` + `Shadow` + `GrabAttack`
+
+**`ShadowAbility`** (`scripts/shadow_ability.gd`) — дочерний компонент основного тела. Состояния:
+
+```
+READY ──[shadow]──► CONTROLLING ──[attack: захват]──► HOLDING ──[hold_time]──► COOLDOWN ──[cooldown]──► READY
+						│                                                           ▲
+						└──[shadow ещё раз / max_control_time]──────────────────────┘
+```
+
+- **CONTROLLING** — тень спавнится у тела; `Juice.hold_time_scale(&"shadow", world_time_scale 0.4)`; `PlayerPawn.possess(shadow)`. Основное тело стоит и **уязвимо** — враги продолжают его атаковать. Длится до `max_control_time` (3 реальных сек).
+- **HOLDING** — тень схватила врага: `release_time_scale`, управление сразу возвращается телу; тень держит врага `GrabAttack.hold_time` (2 с игрового времени), потом `vanish()`.
+- **COOLDOWN** — тени нет, `cooldown` (3 с), затем READY.
+- Отмена (`shadow` ещё раз) или таймаут — тень исчезает без захвата, управление и время возвращаются, кулдаун.
+- `_exit_tree` снимает удержание времени — мир не останется замедленным после смерти/перезагрузки.
+- Сигнал `state_changed(state)` — для будущего HUD.
+
+**`Shadow`** (`scripts/shadow.gd`, `shadow.tscn`) — `extends PlayerPawn`: та же физика движения (бег, прыжки, стены), `speed` 340, `unscaled_time = true`, слой 0, неуязвима. Вместо `MeleeAttack` — `GrabAttack`; `_primary_action()` → `grab_attack.attack()`. При захвате прилипает к цели и шлёт `grabbed(target)`. Своя `Camera2D` (в сцене `enabled = false`, включается при `possess`).
+
+**`GrabAttack`** (`scripts/grab_attack.gd`) — на `attack(direction)` делает shape query кругом `radius` (22) со смещением `reach` (16) к мыши по маске `grab_mask` (враги), берёт ближайшую цель с методом `grab` и вызывает `grab(hold_time)`. Сигналы `grabbed(target)` / `missed`. `cooldown` (0.25 с) между попытками — по реальному времени.
 
 ## Враг (`scripts/enemy.gd`, `enemy.tscn`)
 
@@ -122,6 +167,11 @@
 - **CHASE** — бежит к игроку по X. Если игрок ниже на `drop_height` (24) и враг стоит на one-way платформе — **спрыгивает** за ним (`jump_requested + drop_requested`). Если игрок выше на `drop_height` и над врагом досягаемая one-way платформа (`has_platform_above()`) — **запрыгивает** на неё. Иначе, если на полу упёрся в стену — прыгает. Дальше `lose_range` (400) → IDLE. Ближе `attack_range` (40) и `MeleeAttack` готов → ATTACK.
 - **ATTACK** — стоит, жёлтая вспышка на время замаха `attack_windup` (0.3 с, окно для реакции игрока), затем `melee_attack.attack(направление_на_игрока)` → снова CHASE. Частоту ударов ограничивает `cooldown` его `MeleeAttack` (0.8 с). Последние `clinch_window` (0.15 с) замаха `is_attacking()` уже `true` — удар игрока в этот момент даёт клинч. Удар раньше — обычный урон, замах прерывается (→ CHASE).
 - **STUNNED** — после клинча: `stun_time` (1 с) стоит, не атакует, светится синим. Урон по нему проходит обычно. Потом → CHASE.
+- **GRABBED** — схвачен тенью (`grab(duration)`): стоит, текущий удар гасится, не атакует, не отбрасывается (`apply_knockback` игнорируется), светится фиолетовым. Потом → CHASE.
+
+`facing`: в CHASE и ATTACK враг всегда разворачивается к игроку. В STUNNED/GRABBED — нет: это окно, чтобы зайти за спину.
+
+Блокированный удар (`take_damage` вернул `false`) замах не прерывает.
 
 Если игрок умер/пропал, враг ищет его заново через группу `player` и возвращается в IDLE.
 
@@ -133,6 +183,11 @@
 | `_perform_attack(to_target)` | `melee_attack.attack(to_target)` |
 | `_should_approach(to_target)` | `abs(to_target.x) > attack_range / 2` |
 
+## Бронированный враг (`scripts/enemy_armored.gd`, `enemy_armored.tscn`)
+
+`extends Enemy`, ближний бой, 20 HP, `speed` 150. `take_damage`: если `from` со стороны `facing` (`is_front`) — **блок**: урона нет, белая вспышка, `return false` → у атакующего `hit.blocked`, реакция `HitSparksBlocked` (`trigger = BLOCKED`) даёт искры, игрока отбрасывает. Пули спереди тоже блокируются. Нода `Shield` (визуал) двигается на сторону `facing`.
+
+Как пробить: тенью схватить (GRABBED — не разворачивается) и зайти за спину. Работает и клинч (STUNNED тоже не разворачивается).
 ## Стрелок (`scripts/enemy_shooter.gd`, `enemy_shooter.tscn`)
 
 `extends Enemy`, тот же автомат состояний. Отличия:
@@ -164,13 +219,15 @@
 
 Сервисный синглтон, зарегистрирован в `project.godot` → `[autoload]`. Геймплей сообщает о **событии** (`Juice.hit()`, `Juice.kill()`, `Juice.clinch()`), а что при этом происходит — решает Juice. `spawn_effect(scene, pos, dir)` — одноразовый эффект в корень текущей сцены, ось +X по `dir`; частицы (`CPU/GPUParticles2D`) запускаются `restart()` и удаляются по `finished`. Эффекты живут в игровом времени (в slow-mo тоже замедлены). Сюда же в будущем: звук.
 
+**Удерживаемое замедление** (`hold_time_scale(id, scale)` / `release_time_scale(id)`): держится, пока не отпустят по тому же `id` (тень — `&"shadow"`). Несколько удержаний — действует сильнейшее. Итог каждый кадр: `Engine.time_scale = min(импульс slow_motion, удержания)` — hit-stop работает поверх замедления тенью. **Juice — единственный владелец `Engine.time_scale`**: напрямую его не менять.
+
 **Замедление времени** (`slow_motion(scale, hold, recover)`):
 
 - меняет `Engine.time_scale` — замедляет всё: физику, таймеры, твины, анимации;
 - поэтому длительность считается по **реальному** времени (`Time.get_ticks_usec()`), а не по delta/таймерам;
 - фазы: `hold` сек держит `scale`, потом `recover` сек плавно (ease-out) возвращается к 1.0;
 - если новое замедление приходит во время старого — сливаются (сильнейший `scale`, позднейший конец);
-- `process_mode = ALWAYS`, `reset()` — мгновенно вернуть 1.0.
+- `process_mode = ALWAYS`, `reset()` — мгновенно вернуть 1.0 (сбрасывает и удержания).
 
 Пресеты — константы `(scale, hold, recover)` в начале файла:
 
@@ -202,10 +259,10 @@
 
 1. `MeleeAttack._try_hit` или `BulletWorld` (при попадании пули) создают `HitInfo`:
    `attacker` (у пуль `null`), `target`, `position` (для удара — центр цели, для пули — точка попадания), `direction` (направление удара/полёта пули), `damage`, `kind` (`&"melee"` / `&"bullet"`).
-2. Если у цели есть `take_damage` — наносится урон; затем `hit.killed = target.is_dead`.
+2. Если у цели есть `take_damage` — наносится урон; `hit.blocked = not take_damage(...)`, затем `hit.killed = target.is_dead`.
 3. `HitReaction.dispatch(target, hit)` вызывает `react(hit)` у **всех дочерних `HitReaction`** цели. У цели может не быть `take_damage` — реакции всё равно сработают (проп).
 
-**`HitReaction`** (база, `extends Node`) — фильтры в инспекторе: `enabled`, `trigger` (`ANY` / `NON_LETHAL` / `LETHAL`), `kinds` (пусто = все виды). Новая реакция = скрипт `extends HitReaction` с `_react(hit)`.
+**`HitReaction`** (база, `extends Node`) — фильтры в инспекторе: `enabled`, `trigger` (`ANY` / `NON_LETHAL` / `LETHAL` — только прошедшие удары; `BLOCKED` — только заблокированные), `kinds` (пусто = все виды). Новая реакция = скрипт `extends HitReaction` с `_react(hit)`.
 
 **`HitEffect`** — спавнит `effect` (любая сцена) через `Juice.spawn_effect` в точке попадания, повёрнутым по `hit.direction`. Эффект кладётся в корень уровня, а не в цель — брызги переживают смерть цели.
 
@@ -214,6 +271,7 @@
 | Кто | Реакции |
 |---|---|
 | Враг, стрелок, игрок | `HitBlood` (`blood.tscn`, любой удар) + `HitBloodKill` (`blood_kill.tscn`, `LETHAL`) |
+| Бронированный | то же + `HitSparksBlocked` (`sparks.tscn`, `BLOCKED`) |
 
 Прочие эффекты (не через реакции, т.к. цели — не ноды или событие не «попадание»):
 
@@ -225,7 +283,7 @@
 
 ## Атака (`melee_attack.gd`)
 
-Дочерняя нода бойца (путь `$MeleeAttack` обязателен для `Fighter`). Хитбокс `Area2D` создаётся один раз в `_ready`. `attack(direction := Vector2.ZERO)` поворачивает его по `direction` (локальные координаты; `ZERO` → к мыши), включает на `active_time`, затем кулдаун. `can_attack()` — готов ли удар, `is_active()` — идёт ли удар сейчас, `cancel()` — погасить удар (клинч). Попадание: если у цели есть `is_attacking()` и он `true`, а у владельца есть `clinch()` → клинч (сигнал `clinched`), иначе цель получает `take_damage(damage, global_position)` и эмитится `hit_landed`. Компонент не зависит от `Fighter` напрямую — только duck-typing. Одна цель бьётся максимум раз за взмах; своего владельца (`get_parent()`) хитбокс игнорирует.
+Дочерняя нода бойца (путь `$MeleeAttack` обязателен для `Fighter`). Хитбокс `Area2D` создаётся один раз в `_ready`. `attack(direction := Vector2.ZERO)` поворачивает его по `direction` (локальные координаты; `ZERO` → к мыши), включает на `active_time`, затем кулдаун. `can_attack()` — готов ли удар, `is_active()` — идёт ли удар сейчас, `cancel()` — погасить удар (клинч). Попадание: если у цели есть `is_attacking()` и он `true`, а у владельца есть `clinch()` → клинч (сигнал `clinched`), иначе цель получает `take_damage(damage, global_position)` и эмитится `hit_landed(hit: HitInfo)` (в т.ч. при блоке — см. `hit.blocked`). Компонент не зависит от `Fighter` напрямую — только duck-typing. Одна цель бьётся максимум раз за взмах; своего владельца (`get_parent()`) хитбокс игнорирует.
 
 ## Известные TODO
 
@@ -237,6 +295,7 @@
 - Пропы на слое 5 (ящики, лампы) с собственными `HitReaction`.
 - Пули: другие аффекторы (магнит, поле замедления), `MultiMeshInstance2D` при большом количестве.
 - Нет неуязвимости после урона.
+- Тень: HUD кулдауна (есть сигнал `ShadowAbility.state_changed`), ограничение дальности от тела, визуальная связь тело↔тень.
 - Смерть игрока — просто перезагрузка сцены, без экрана/анимации.
 
 ## Журнал изменений
@@ -248,3 +307,4 @@
 - **2026-09-24** — Добавлены стрелки (`enemy_shooter.tscn`, `scripts/enemy_shooter.gd`) и система пуль `BulletWorld` (packed-массивы вместо нод, аффекторы). Катана игрока отбивает пули (`MeleeAttack.deflect_bullets`). `Enemy` получил `class_name` и точки расширения `_can_start_attack` / `_perform_attack` / `_should_approach`. `MeleeAttack` у `Fighter` стал необязательным. Из `world.tscn` убраны `null`-переопределения параметров игрока.
 - **2026-09-24** — `Juice`: тряска камеры (trauma² × шум, по реальному времени) при попадании, добивании, клинче и отбитой пуле.
 - **2026-09-24** — Система реакций на удар (`HitInfo`, `HitReaction`, `HitEffect` в `scripts/hits/`) + эффекты частиц (`effects/`): кровь при попадании и сильнее при убийстве, искры при отражении пули, клинче и попадании пули в стену. `Juice.spawn_effect`. Зона отражения пуль расширена (`deflect_padding`). Удар игрока бьёт и слой 5 (пропы). Juice-замедление только по `Fighter`. Убран некорректный `#`-комментарий из `enemy.tscn`.
+- **2026-09-24** — Механика тени: `PlayerPawn` (передача управления через `PlayerPawn.possessed`), `Shadow` + `GrabAttack` (захват врага), `ShadowAbility` (цикл READY → CONTROLLING → HOLDING → COOLDOWN), инпут `shadow` (ПКМ). `Juice.hold_time_scale/release_time_scale` — удерживаемое замедление поверх импульсов. `Fighter`: `facing`, `unscaled_time`, `take_damage` возвращает `bool`. `Enemy`: состояние GRABBED, разворот к игроку. Бронированный враг (`enemy_armored`) с блоком спереди; `HitInfo.blocked`, триггер реакций `BLOCKED`; `hit_landed` передаёт `HitInfo`.

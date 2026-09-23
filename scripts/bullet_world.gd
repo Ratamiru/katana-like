@@ -182,11 +182,13 @@ func _physics_process(delta: float) -> void:
 		else:
 			var target := hit.collider as Node
 			var dir := _vel[i].normalized()
+			var blocked := false
 			if target and target.has_method("take_damage"):
 				# from для отбрасывания — точка чуть позади пули.
-				target.take_damage(_damage[i], hit.position - dir * 8.0)
+				blocked = not target.take_damage(_damage[i], hit.position - dir * 8.0)
 			if HitReaction.has_reactions(target):
 				var info := HitInfo.make(null, target, hit.position, dir, _damage[i], &"bullet")
+				info.blocked = blocked
 				info.killed = target.get("is_dead") == true
 				HitReaction.dispatch(target, info)
 			else:

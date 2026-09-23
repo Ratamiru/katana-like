@@ -25,11 +25,15 @@ const FLOOR_PROBE := 20.0 # длина луча вниз от центра дл�
 @export var knockback_time := 0.2 # сек без управления после удара
 @export var clinch_knockback := Vector2(300.0, -120.0) # отбрасывание обоих при клинче
 @export var clinch_effect: PackedScene # эффект между бойцами при клинче (искры); берётся у любого из двух
+## Жить в реальном времени: движение не замедляется Engine.time_scale (тень во время замедления).
+@export var unscaled_time := false
 
 # Намерения на текущий кадр — выставляются в _update_intent().
 var move_dir := 0.0
 var jump_requested := false
 var drop_requested := false
+
+var facing := 1.0 # куда смотрит боец: 1 — вправо, -1 — влево. Обновляется по move_dir; враги — по цели
 
 var health: int
 var is_dead := false
@@ -52,7 +56,16 @@ func _update_intent(_delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
+	# unscaled_time: delta и скорость пересчитываются в реальное время.
+	# Гравитация/таймеры считаются по реальному delta, а move_and_slide (который
+	# внутри берёт замедленный physics delta) получает скорость × k.
+	var k := 1.0
+	if unscaled_time and Engine.time_scale > 0.0:
+		k = 1.0 / Engine.time_scale
+	delta *= k
 	_update_intent(delta)
+	if move_dir:
+		facing = signf(move_dir)
 
 	if not is_on_floor():
 		velocity += get_gravity() * delta
@@ -78,7 +91,9 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_dir * speed
 	else:
 		velocity.x = move_toward(velocity.x, 0, speed)
+	velocity *= k
 	move_and_slide()
+	velocity /= k
 
 
 func _drop_through() -> void:
@@ -149,10 +164,11 @@ func _on_clinch(other: Fighter) -> void:
 	clinched.emit(other)
 
 
-## Вызывается хитбоксом MeleeAttack. from — позиция атакующего (для отбрасывания).
-func take_damage(amount: int, from := global_position) -> void:
+## Вызывается хитбоксом MeleeAttack и пулями. from — позиция атакующего (для отбрасывания).
+## Возвращает true, если урон прошёл; false — если заблокирован (броня) или цель уже мертва.
+func take_damage(amount: int, from := global_position) -> bool:
 	if is_dead:
-		return
+		return false
 	health -= amount
 	damaged.emit(amount)
 	_flash(Color.RED)
@@ -161,6 +177,7 @@ func take_damage(amount: int, from := global_position) -> void:
 		is_dead = true
 		died.emit()
 		_die()
+	return true
 
 
 ## Переопределяется наследниками.

@@ -11,6 +11,7 @@ var direction: Vector2 # куда летел удар/пуля (нормализ
 var damage: int
 var kind: StringName # &"melee", &"bullet", … — реакции могут фильтровать по нему
 var killed := false # цель умерла от этого удара (заполняется после take_damage)
+var blocked := false # урон не прошёл (броня): take_damage вернул false
 
 
 static func make(p_attacker: Node, p_target: Node, p_position: Vector2, p_direction: Vector2, p_damage: int, p_kind: StringName) -> HitInfo:

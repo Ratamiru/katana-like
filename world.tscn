@@ -4,8 +4,9 @@
 [ext_resource type="PackedScene" uid="uid://4n3gv2wu6qil" path="res://character.tscn" id="2_fj7yv"]
 [ext_resource type="PackedScene" path="res://enemy.tscn" id="3_enemy"]
 [ext_resource type="PackedScene" path="res://enemy_shooter.tscn" id="4_shooter"]
-[ext_resource type="Script" path="res://scripts/bullet_world.gd" id="5_bullets"]
+[ext_resource type="Script" uid="uid://bhsut4f1cpx8x" path="res://scripts/bullet_world.gd" id="5_bullets"]
 [ext_resource type="PackedScene" path="res://effects/sparks.tscn" id="6_sparks"]
+[ext_resource type="PackedScene" path="res://enemy_armored.tscn" id="7_armored"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f3sb7"]
 texture = ExtResource("1_f3sb7")
@@ -43,22 +44,22 @@ position = Vector2(253, -26)
 
 [node name="Enemy2" parent="." unique_id=1899553925 instance=ExtResource("3_enemy")]
 position = Vector2(458, -89)
-speed = 180.0
 
 [node name="Enemy3" parent="." unique_id=463203626 instance=ExtResource("3_enemy")]
 position = Vector2(618, -79)
-speed = 180.0
 
 [node name="Enemy4" parent="." unique_id=1536446468 instance=ExtResource("3_enemy")]
 position = Vector2(654, -185)
-speed = 180.0
 
-[node name="EnemyShooter" parent="." instance=ExtResource("4_shooter")]
+[node name="EnemyShooter" parent="." unique_id=594362912 instance=ExtResource("4_shooter")]
 position = Vector2(93, -26)
 
-[node name="EnemyShooter2" parent="." instance=ExtResource("4_shooter")]
+[node name="EnemyShooter2" parent="." unique_id=521537340 instance=ExtResource("4_shooter")]
 position = Vector2(733, -185)
 
-[node name="BulletWorld" type="Node2D" parent="."]
+[node name="EnemyArmored" parent="." instance=ExtResource("7_armored")]
+position = Vector2(-60, -26)
+
+[node name="BulletWorld" type="Node2D" parent="." unique_id=368480397]
 script = ExtResource("5_bullets")
 wall_effect = ExtResource("6_sparks")

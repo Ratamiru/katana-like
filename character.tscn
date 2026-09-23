@@ -6,6 +6,8 @@
 [ext_resource type="PackedScene" path="res://effects/blood.tscn" id="h_blood"]
 [ext_resource type="PackedScene" path="res://effects/blood_kill.tscn" id="h_kill"]
 [ext_resource type="PackedScene" path="res://effects/sparks.tscn" id="h_sparks"]
+[ext_resource type="Script" path="res://scripts/shadow_ability.gd" id="sh_ability"]
+[ext_resource type="PackedScene" path="res://shadow.tscn" id="sh_scene"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_kesq0"]
 radius = 8.0
@@ -62,3 +64,7 @@ effect = ExtResource("h_blood")
 script = ExtResource("h_eff")
 trigger = 2
 effect = ExtResource("h_kill")
+
+[node name="ShadowAbility" type="Node" parent="."]
+script = ExtResource("sh_ability")
+shadow_scene = ExtResource("sh_scene")

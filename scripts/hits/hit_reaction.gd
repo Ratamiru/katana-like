@@ -12,10 +12,11 @@ extends Node
 ## Новая реакция — это новый скрипт `extends HitReaction` с переопределённым _react().
 ##
 ## Фильтры (настраиваются в инспекторе):
-##   trigger — на любой удар / только не смертельный / только смертельный;
+##   trigger — ANY (любой прошедший удар) / NON_LETHAL / LETHAL / BLOCKED (только
+##             заблокированный — искры от брони). Реакции кроме BLOCKED на блок не срабатывают;
 ##   kinds   — только на определённые виды ударов (&"melee", &"bullet"); пусто — на все.
 
-enum Trigger { ANY, NON_LETHAL, LETHAL }
+enum Trigger { ANY, NON_LETHAL, LETHAL, BLOCKED }
 
 @export var enabled := true
 @export var trigger := Trigger.ANY
@@ -43,6 +44,8 @@ static func has_reactions(target: Node) -> bool:
 
 func react(hit: HitInfo) -> void:
 	if not enabled:
+		return
+	if hit.blocked != (trigger == Trigger.BLOCKED):
 		return
 	if trigger == Trigger.NON_LETHAL and hit.killed:
 		return

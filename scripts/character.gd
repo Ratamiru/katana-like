@@ -1,30 +1,34 @@
-extends Fighter
+extends PlayerPawn
 
-## Игрок: намерения движения берутся из инпута, атака — в сторону мыши.
+## Основное тело игрока: катана в сторону мыши. Управление — см. PlayerPawn,
+## тень — дочерний компонент ShadowAbility.
 
 
 func _ready() -> void:
 	super()
 	add_to_group("player")
+	PlayerPawn.possess(self) # при старте/перезагрузке уровня управляем основным телом
 	melee_attack.hit_landed.connect(_on_hit_landed)
 	melee_attack.deflected.connect(Juice.hit)
 	clinched.connect(func(_other: Fighter) -> void: Juice.clinch())
 
 
-func _on_hit_landed(target: Node) -> void:
+func _on_hit_landed(hit: HitInfo) -> void:
 	# Замедление/тряска — только по бойцам. У пропов своя реакция (HitReaction).
-	if target is not Fighter:
+	if hit.target is not Fighter:
 		return
-	if target.is_dead:
+	if hit.blocked:
+		# Удар в броню — отдача и лёгкая тряска вместо hit-stop.
+		apply_knockback(hit.position, knockback * 0.6)
+		Juice.shake(0.2)
+	elif hit.killed:
 		Juice.kill()
 	else:
 		Juice.hit()
 
 
-func _update_intent(_delta: float) -> void:
-	move_dir = Input.get_axis("backward", "forward")
-	jump_requested = Input.is_action_just_pressed("jump")
-	drop_requested = Input.is_action_pressed("down")
+func _update_intent(delta: float) -> void:
+	super(delta)
 	mouse_pos()
 
 
@@ -33,9 +37,8 @@ func mouse_pos() -> void:
 	# sprite.flip_h = is_left  # или scale.x = -1.0 if is_left else 1.0, смотря как у тебя реализован флип
 
 
-func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("attack") and not is_dead:
-		melee_attack.attack()
+func _primary_action() -> void:
+	melee_attack.attack()
 
 
 func _die() -> void:

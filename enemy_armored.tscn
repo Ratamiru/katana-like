@@ -1,0 +1,59 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_armored.gd" id="1_enemy"]
+[ext_resource type="Script" uid="uid://c43k4ov0ap8xc" path="res://melee_attack.gd" id="2_melee"]
+[ext_resource type="Script" path="res://scripts/hits/hit_effect.gd" id="h_eff"]
+[ext_resource type="PackedScene" path="res://effects/blood.tscn" id="h_blood"]
+[ext_resource type="PackedScene" path="res://effects/blood_kill.tscn" id="h_kill"]
+[ext_resource type="PackedScene" path="res://effects/sparks.tscn" id="h_sparks"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_enemy"]
+radius = 8.0
+height = 26.0
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_enemy"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_shield"]
+
+[node name="EnemyArmored" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 3
+script = ExtResource("1_enemy")
+max_health = 20
+speed = 150.0
+
+[node name="MeleeAttack" type="Node2D" parent="."]
+script = ExtResource("2_melee")
+reach = 20.0
+hitbox_size = Vector2(40, 14)
+active_time = 0.1
+cooldown = 0.8
+hit_mask = 8
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_enemy")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+self_modulate = Color(0.45, 0.45, 0.55, 1)
+scale = Vector2(13, 20.375)
+texture = SubResource("PlaceholderTexture2D_enemy")
+
+[node name="HitBlood" type="Node" parent="."]
+script = ExtResource("h_eff")
+effect = ExtResource("h_blood")
+
+[node name="HitBloodKill" type="Node" parent="."]
+script = ExtResource("h_eff")
+trigger = 2
+effect = ExtResource("h_kill")
+
+[node name="HitSparksBlocked" type="Node" parent="."]
+script = ExtResource("h_eff")
+trigger = 3
+effect = ExtResource("h_sparks")
+
+[node name="Shield" type="Sprite2D" parent="."]
+position = Vector2(10, 0)
+self_modulate = Color(0.8, 0.85, 0.95, 1)
+scale = Vector2(4, 24)
+texture = SubResource("PlaceholderTexture2D_shield")

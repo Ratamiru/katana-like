@@ -9,9 +9,10 @@ extends Fighter
 ## CHASE — бежит к игроку, перепрыгивает препятствия, спрыгивает с платформ, если игрок ниже,
 ##         и запрыгивает на платформу над собой, если игрок выше;
 ## ATTACK — в радиусе attack_range останавливается, замахивается (attack_windup) и бьёт;
-## STUNNED — оглушён после клинча, стоит stun_time и не атакует.
+## STUNNED — оглушён после клинча, стоит stun_time и не атакует;
+## GRABBED — схвачен тенью (grab()): стоит, не атакует, не разворачивается, не отбрасывается.
 
-enum State { IDLE, CHASE, ATTACK, STUNNED }
+enum State { IDLE, CHASE, ATTACK, STUNNED, GRABBED }
 
 @export var sight_range := 250.0
 @export var lose_range := 400.0 # дальше этого теряет интерес к игроку
@@ -26,6 +27,7 @@ var state := State.IDLE
 var _target: Fighter
 var _windup_left := 0.0
 var _stun_left := 0.0
+var _grab_left := 0.0
 
 
 func _update_intent(delta: float) -> void:
@@ -72,6 +74,15 @@ func _update_intent(delta: float) -> void:
 			_stun_left -= delta
 			if _stun_left <= 0.0:
 				state = State.CHASE
+		State.GRABBED:
+			_grab_left -= delta
+			if _grab_left <= 0.0:
+				state = State.CHASE
+
+	# Лицом к игроку, пока преследует/бьёт. Оглушённый и схваченный не поворачивается —
+	# это окно, чтобы зайти за спину.
+	if (state == State.CHASE or state == State.ATTACK) and to_target.x != 0.0:
+		facing = signf(to_target.x)
 
 
 ## Готов ли начать атаку (враг уже в attack_range).
@@ -106,8 +117,28 @@ func _on_clinch(other: Fighter) -> void:
 	_flash(Color(0.4, 0.6, 1.0), stun_time)
 
 
-func take_damage(amount: int, from := global_position) -> void:
-	super(amount, from)
-	# Получил удар — сразу агрится, даже если не видел; замах прерывается.
-	if not is_dead and (state == State.IDLE or state == State.ATTACK):
+## Схватить врага на duration сек (вызывает GrabAttack тени). true — если получилось.
+func grab(duration: float) -> bool:
+	if is_dead:
+		return false
+	state = State.GRABBED
+	_grab_left = duration
+	if melee_attack:
+		melee_attack.cancel() # схватили посреди удара — удар гаснет
+	velocity = Vector2.ZERO
+	_flash(Color(0.6, 0.3, 1.0), duration)
+	return true
+
+
+func apply_knockback(from: Vector2, force: Vector2, lock_time := knockback_time) -> void:
+	if state == State.GRABBED:
+		return # держат — не отлетает
+	super(from, force, lock_time)
+
+
+func take_damage(amount: int, from := global_position) -> bool:
+	var applied := super(amount, from)
+	# Получил удар — сразу агрится, даже если не видел; замах прерывается (если урон прошёл, а не блок).
+	if not is_dead and (state == State.IDLE or (state == State.ATTACK and applied)):
 		state = State.CHASE
+	return applied

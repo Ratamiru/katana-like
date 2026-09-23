@@ -29,6 +29,15 @@ extends Node
 ## они сливаются: берётся более сильный scale и более поздний конец. Так эффекты
 ## не «обрезают» друг друга и время не дёргается.
 ##
+## ── Удерживаемое замедление (hold_time_scale) ──
+##
+## slow_motion — короткий импульс, сам себя заканчивает. Для режимов, которые
+## длятся сколько угодно (управление тенью), есть hold_time_scale(id, scale) /
+## release_time_scale(id): замедление держится, пока его не отпустят по тому же id.
+## Удержаний может быть несколько (разные id) — действует самое сильное.
+## Итоговый Engine.time_scale = min(текущий импульс slow_motion, все удержания),
+## поэтому удар во время замедления тенью всё равно даёт свой hit-stop поверх.
+##
 ## ── Как работает тряска камеры (shake) ──
 ##
 ## Модель «травмы» (trauma): у Juice есть число trauma ∈ [0, 1].
@@ -68,6 +77,7 @@ var _scale := 1.0        # минимальный time_scale текущего з
 var _hold_until := 0     # usec: до этого момента держим _scale
 var _recover_until := 0  # usec: к этому моменту возвращаемся к 1.0
 var _active := false
+var _holds := {} # StringName -> float: удерживаемые замедления
 
 var _trauma := 0.0
 var _shake_camera: Camera2D
@@ -116,7 +126,7 @@ func slow_motion(scale: float, hold: float, recover: float) -> void:
 	_hold_until = hold_until
 	_recover_until = recover_until
 	_active = true
-	Engine.time_scale = _scale
+	_apply_time_scale(now)
 
 
 ## Встряхнуть текущую камеру: добавить amount (0..1) к trauma.
@@ -144,9 +154,21 @@ func spawn_effect(scene: PackedScene, pos: Vector2, dir := Vector2.RIGHT) -> Nod
 	return fx
 
 
-## Немедленно вернуть нормальное время.
+## Держать замедление scale, пока не вызовут release_time_scale(id).
+func hold_time_scale(id: StringName, scale: float) -> void:
+	_holds[id] = scale
+	_apply_time_scale(Time.get_ticks_usec())
+
+
+func release_time_scale(id: StringName) -> void:
+	_holds.erase(id)
+	_apply_time_scale(Time.get_ticks_usec())
+
+
+## Немедленно вернуть нормальное время (сбрасывает и импульс, и все удержания).
 func reset() -> void:
 	_active = false
+	_holds.clear()
 	Engine.time_scale = 1.0
 
 
@@ -160,7 +182,7 @@ func _process(_delta: float) -> void:
 	var real_delta := float(now - _last_usec) / 1_000_000.0
 	_last_usec = now
 	_update_shake(now, real_delta)
-	_update_slow_motion(now)
+	_apply_time_scale(now)
 
 
 func _update_shake(now: int, real_delta: float) -> void:
@@ -186,13 +208,17 @@ func _update_shake(now: int, real_delta: float) -> void:
 	)
 
 
-func _update_slow_motion(now: int) -> void:
-	if not _active:
-		return
-	if now < _hold_until:
-		Engine.time_scale = _scale
-	elif now < _recover_until:
-		var t := float(now - _hold_until) / float(_recover_until - _hold_until)
-		Engine.time_scale = lerpf(_scale, 1.0, ease(t, 0.4)) # 0.4 — ease-out: быстро разгоняется, мягко доходит до 1
-	else:
-		reset()
+## Итоговый time_scale = min(импульс slow_motion, удержания).
+func _apply_time_scale(now: int) -> void:
+	var t_scale := 1.0
+	if _active:
+		if now < _hold_until:
+			t_scale = _scale
+		elif now < _recover_until:
+			var t := float(now - _hold_until) / float(_recover_until - _hold_until)
+			t_scale = lerpf(_scale, 1.0, ease(t, 0.4)) # 0.4 — ease-out: быстро разгоняется, мягко доходит до 1
+		else:
+			_active = false
+	for h: float in _holds.values():
+		t_scale = minf(t_scale, h)
+	Engine.time_scale = t_scale
