@@ -73,6 +73,7 @@ func _activate() -> void:
 	_shadow.grabbed.connect(_on_shadow_grabbed)
 
 	Juice.hold_time_scale(TIME_HOLD_ID, world_time_scale)
+	ScreenFX.enter(TIME_HOLD_ID)
 	PlayerPawn.possess(_shadow)
 	_timer = max_control_time
 	_set_state(State.CONTROLLING)
@@ -81,6 +82,7 @@ func _activate() -> void:
 func _on_shadow_grabbed(_target: Node) -> void:
 	# Захват: управление и время — телу, тень держит врага.
 	Juice.release_time_scale(TIME_HOLD_ID)
+	ScreenFX.exit(TIME_HOLD_ID)
 	PlayerPawn.possess(body)
 	_timer = _shadow.grab_attack.hold_time
 	_set_state(State.HOLDING)
@@ -90,6 +92,7 @@ func _on_shadow_grabbed(_target: Node) -> void:
 func _end(return_control: bool) -> void:
 	if return_control:
 		Juice.release_time_scale(TIME_HOLD_ID)
+		ScreenFX.exit(TIME_HOLD_ID)
 		PlayerPawn.possess(body)
 	if is_instance_valid(_shadow):
 		_shadow.vanish()
@@ -104,5 +107,6 @@ func _set_state(s: State) -> void:
 
 
 func _exit_tree() -> void:
-	# Тело удалилось (смерть/перезагрузка) — не оставить мир замедленным.
+	# Тело удалилось (смерть/перезагрузка) — не оставить мир замедленным и экран фиолетовым.
 	Juice.release_time_scale(TIME_HOLD_ID)
+	ScreenFX.exit(TIME_HOLD_ID)

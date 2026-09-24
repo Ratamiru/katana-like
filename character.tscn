@@ -2,11 +2,11 @@
 
 [ext_resource type="Script" uid="uid://hi6ircguxcl3" path="res://scripts/character.gd" id="1_glpr6"]
 [ext_resource type="Script" uid="uid://c43k4ov0ap8xc" path="res://melee_attack.gd" id="2_pjt0s"]
-[ext_resource type="Script" path="res://scripts/hits/hit_effect.gd" id="h_eff"]
 [ext_resource type="PackedScene" path="res://effects/blood.tscn" id="h_blood"]
+[ext_resource type="Script" uid="uid://dyohhyxkor5l" path="res://scripts/hits/hit_effect.gd" id="h_eff"]
 [ext_resource type="PackedScene" path="res://effects/blood_kill.tscn" id="h_kill"]
 [ext_resource type="PackedScene" path="res://effects/sparks.tscn" id="h_sparks"]
-[ext_resource type="Script" path="res://scripts/shadow_ability.gd" id="sh_ability"]
+[ext_resource type="Script" uid="uid://b0kekv6h5n6bj" path="res://scripts/shadow_ability.gd" id="sh_ability"]
 [ext_resource type="PackedScene" path="res://shadow.tscn" id="sh_scene"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_kesq0"]
@@ -26,6 +26,8 @@ clinch_effect = ExtResource("h_sparks")
 [node name="MeleeAttack" type="Node2D" parent="." unique_id=911463422]
 script = ExtResource("2_pjt0s")
 hitbox_size = Vector2(70, 14)
+active_time = 0.6
+cooldown = 0.5
 hit_mask = 20
 deflect_bullets = true
 deflect_effect = ExtResource("h_sparks")
@@ -56,15 +58,15 @@ offset_right = 29.0
 offset_bottom = -20.0
 scale = Vector2(0.46, 0.46)
 
-[node name="HitBlood" type="Node" parent="."]
+[node name="HitBlood" type="Node" parent="." unique_id=1420027395]
 script = ExtResource("h_eff")
 effect = ExtResource("h_blood")
 
-[node name="HitBloodKill" type="Node" parent="."]
+[node name="HitBloodKill" type="Node" parent="." unique_id=936578451]
 script = ExtResource("h_eff")
-trigger = 2
 effect = ExtResource("h_kill")
+trigger = 2
 
-[node name="ShadowAbility" type="Node" parent="."]
+[node name="ShadowAbility" type="Node" parent="." unique_id=723679694]
 script = ExtResource("sh_ability")
 shadow_scene = ExtResource("sh_scene")

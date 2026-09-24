@@ -1,3 +1,32 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Godot: C#/mono, крэш-логи, экспорт
+.mono/
+data_*/
+mono_crash.*.json
+/build/
+/export/
+*.apk
+*.aab
+*.exe
+*.pck
+*.x86_64
+
+# Пресеты экспорта могут содержать ключи/пароли подписи
+export_credentials.cfg
+
+# Собранная документация (исходник docs/*.typ в репо, PDF собирается: typst compile docs/architecture.typ)
+docs/*.pdf
+
+# ОС и редакторы
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.vscode/
+.idea/
+*.tmp
+*.bak

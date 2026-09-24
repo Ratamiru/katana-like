@@ -27,6 +27,9 @@ enum Trigger { ANY, NON_LETHAL, LETHAL, BLOCKED }
 static func dispatch(target: Node, hit: HitInfo) -> void:
 	if target == null:
 		return
+	# Цель может реагировать и сама, без дочерних нод (Switch и т.п.).
+	if target.has_method("on_hit"):
+		target.on_hit(hit)
 	for child in target.get_children():
 		if child is HitReaction:
 			child.react(hit)
@@ -36,6 +39,8 @@ static func dispatch(target: Node, hit: HitInfo) -> void:
 static func has_reactions(target: Node) -> bool:
 	if target == null:
 		return false
+	if target.has_method("on_hit"):
+		return true
 	for child in target.get_children():
 		if child is HitReaction:
 			return true

@@ -1,0 +1,37 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/level/lever.gd" id="1_lever"]
+[ext_resource type="Script" path="res://scripts/hits/hit_effect.gd" id="2_eff"]
+[ext_resource type="PackedScene" path="res://effects/sparks.tscn" id="3_sparks"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_lever"]
+size = Vector2(16, 20)
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_base"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_handle"]
+
+[node name="Lever" type="Area2D"]
+script = ExtResource("1_lever")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_lever")
+
+[node name="Base" type="Sprite2D" parent="."]
+position = Vector2(0, 7)
+self_modulate = Color(0.3, 0.3, 0.33, 1)
+scale = Vector2(12, 6)
+texture = SubResource("PlaceholderTexture2D_base")
+
+[node name="Handle" type="Node2D" parent="."]
+position = Vector2(0, 6)
+
+[node name="Sprite2D" type="Sprite2D" parent="Handle"]
+position = Vector2(0, -8)
+self_modulate = Color(0.9, 0.2, 0.2, 1)
+scale = Vector2(3, 16)
+texture = SubResource("PlaceholderTexture2D_handle")
+
+[node name="HitSparks" type="Node" parent="."]
+script = ExtResource("2_eff")
+effect = ExtResource("3_sparks")

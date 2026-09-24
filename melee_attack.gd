@@ -18,6 +18,13 @@ extends Node2D
 @export var deflect_padding := Vector2(24, 24) # насколько зона отражения больше хитбокса — чем больше, тем проще отбить
 @export var deflect_effect: PackedScene      # эффект в точке отбитой пули (искры)
 
+@export_group("Debug")
+## Цвета хитбокса при Debug → Visible Collision Shapes: сразу видно тайминг удара.
+@export var debug_color_active := Color(1.0, 0.2, 0.2, 0.55)   # удар идёт — бьёт и отбивает
+@export var debug_color_idle := Color(0.6, 0.6, 0.6, 0.12)     # выключен — просто висит, ничего не делает
+@export var debug_color_cancelled := Color(0.3, 0.6, 1.0, 0.4) # погашен клинчем до конца active_time
+@export var debug_deflect_zone := Color(0.2, 1.0, 1.0, 0.8)    # контур зоны отбивания пуль (hitbox + deflect_padding)
+
 signal hit_landed(hit: HitInfo) # попадание (в т.ч. заблокированное — см. hit.blocked)
 signal clinched(target: Node)
 signal deflected # отбита хотя бы одна пуля за кадр
@@ -25,6 +32,8 @@ signal deflected # отбита хотя бы одна пуля за кадр
 var _can_attack := true
 var _cancelled := false # удар погашен клинчем — хитбокс больше никого не бьёт
 var _already_hit: Array[Node] = []  # чтобы один взмах не бил одну цель дважды
+
+var _hitbox_shape: CollisionShape2D
 
 @onready var _hitbox: Area2D = _make_hitbox()
 
@@ -41,6 +50,8 @@ func _make_hitbox() -> Area2D:
 
 	var coll := CollisionShape2D.new()
 	coll.shape = shape
+	coll.debug_color = debug_color_idle
+	_hitbox_shape = coll
 
 	area.add_child(coll)
 	add_child(area)
@@ -64,6 +75,7 @@ func is_active() -> bool:
 func cancel() -> void:
 	_cancelled = true
 	_hitbox.set_deferred("monitoring", false)
+	_set_debug_color(debug_color_cancelled)
 
 
 ## Удар в направлении direction (локально). Без аргумента — в сторону мыши (для игрока).
@@ -81,6 +93,7 @@ func attack(direction := Vector2.ZERO) -> void:
 	_already_hit.clear()
 	_cancelled = false
 	_hitbox.monitoring = true
+	_set_debug_color(debug_color_active)
 	var bullets := BulletWorld.current
 	if deflect_bullets and bullets:
 		bullets.add_affector(self)
@@ -89,6 +102,7 @@ func attack(direction := Vector2.ZERO) -> void:
 	if not is_instance_valid(self):
 		return
 	_hitbox.monitoring = false
+	_set_debug_color(debug_color_idle)
 	if is_instance_valid(bullets):
 		bullets.remove_affector(self)
 
@@ -98,6 +112,21 @@ func attack(direction := Vector2.ZERO) -> void:
 	if not is_instance_valid(self):
 		return
 	_can_attack = true
+
+
+## Цвет формы хитбокса в отладочной отрисовке + перерисовка контура зоны отбивания.
+func _set_debug_color(color: Color) -> void:
+	_hitbox_shape.debug_color = color
+	queue_redraw()
+
+
+## Контур зоны отбивания — только при Debug → Visible Collision Shapes и пока удар активен.
+func _draw() -> void:
+	if not deflect_bullets or not is_active() or not get_tree().debug_collisions_hint:
+		return
+	var size := hitbox_size + deflect_padding
+	draw_set_transform_matrix(_hitbox.transform)
+	draw_rect(Rect2(-size * 0.5, size), debug_deflect_zone, false, 1.0)
 
 
 ## Аффектор BulletWorld: пока удар активен, пули в хитбоксе, летящие во владельца,

@@ -8,6 +8,8 @@
 [ext_resource type="PackedScene" path="res://effects/sparks.tscn" id="6_sparks"]
 [ext_resource type="PackedScene" path="res://enemy_armored.tscn" id="7_armored"]
 [ext_resource type="PackedScene" path="res://turret.tscn" id="8_turret"]
+[ext_resource type="PackedScene" path="res://level/lever.tscn" id="9_lever"]
+[ext_resource type="PackedScene" path="res://level/door.tscn" id="10_door"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f3sb7"]
 texture = ExtResource("1_f3sb7")
@@ -67,6 +69,13 @@ fire_mode = 1
 
 [node name="Turret2" parent="." unique_id=1742079826 instance=ExtResource("8_turret")]
 position = Vector2(765, -68)
+
+[node name="Door" parent="." unique_id=1265248334 instance=ExtResource("10_door")]
+position = Vector2(-150, -29)
+
+[node name="Lever" parent="." unique_id=531213442 instance=ExtResource("9_lever")]
+position = Vector2(-330, -8)
+targets = Array[NodePath]([NodePath("../Door")])
 
 [node name="BulletWorld" type="Node2D" parent="." unique_id=368480397]
 script = ExtResource("5_bullets")

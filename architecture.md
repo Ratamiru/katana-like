@@ -3,6 +3,8 @@
 2D-платформер с ближним боем в духе Katana Zero. Godot 4.7, Forward Plus, физика Jolt (3D; в 2D — стандартная).
 
 > Этот файл обновляется при каждом изменении архитектуры или механик — см. раздел «Журнал изменений» внизу.
+>
+> Визуальный обзор с диаграммами (иерархия классов, слои, автоматы состояний, поток удара) — `docs/architecture.typ`. Сборка: `typst compile docs/architecture.typ` → `docs/architecture.pdf` (PDF в `.gitignore`).
 
 ## Структура проекта
 
@@ -27,11 +29,19 @@
 | `scripts/enemy_shooter.gd` | Стрелок (`extends Enemy`): держит дистанцию, стреляет через `BulletWorld` |
 | `scripts/bullet_world.gd` | `BulletWorld` — все пули уровня в packed-массивах, аффекторы (отражение и т.п.) |
 | `scripts/juice.gd` | Autoload `Juice` — сервис «сочности» (замедление времени, тряска камеры) |
+| `scripts/fx/screen_fx.gd` | Autoload `ScreenFX` — полноэкранные эффекты-телеграфы (состояния и импульсы) |
+| `scripts/fx/screen_fx_preset.gd` | `ScreenFXPreset` (Resource) — параметры одного экранного эффекта + огибающая |
+| `shaders/screen_fx.gdshader` | Шейдер оверлея: тонировка, виньетка, обесцвечивание, хроматическая аберрация |
 | `melee_attack.gd` | `MeleeAttack` — компонент удара (Area2D-хитбокс, кулдаун), к мыши или в заданном направлении |
 | `scripts/hits/hit_info.gd` | `HitInfo` — данные одного попадания (кто, куда, откуда, урон, вид, убил ли) |
 | `scripts/hits/hit_reaction.gd` | `HitReaction` — базовая реакция на удар + `dispatch()` рассылки |
 | `scripts/hits/hit_effect.gd` | `HitEffect` — реакция «заспавнить эффект» (кровь, искры…) |
 | `effects/` | Сцены эффектов: `blood.tscn`, `blood_kill.tscn`, `sparks.tscn` (`CPUParticles2D`, one-shot) |
+| `scripts/level/switch.gd` | `Switch` — база переключателей (`Area2D`, слой 5): `targets` → `set_active(on)`, режимы TOGGLE/ONCE/TIMED |
+| `scripts/level/lever.gd` | `Lever` (`extends Switch`) — рычаг, переключается ударом катаны |
+| `scripts/level/door.gd` | `Door` (`AnimatableBody2D`) — пример цели: открывается сдвигом |
+| `level/` | Сцены объектов уровня: `lever.tscn`, `door.tscn` |
+| `docs/architecture.typ` | Документ Typst с диаграммами архитектуры |
 | `scripts/create_tiles.gd` | EditorScript: генерирует `art/placeholder_tiles.png` (4 цветных тайла 32×32) |
 | `art/` | Графика (пока плейсхолдеры) |
 
@@ -39,11 +49,11 @@
 
 | Слой | Что на нём |
 |---|---|
-| 1 | Сплошные тайлы (пол, стены) |
+| 1 | Сплошные тайлы (пол, стены), двери (`Door`) |
 | 2 | One-way платформы, сквозь которые можно спрыгнуть (`down` + `jump`) |
 | 3 (значение `4`) | Враги (в т.ч. турели) |
 | 4 (значение `8`) | Игрок |
-| 5 (значение `16`) | Пропы, которые можно ударить (пока нет) |
+| 5 (значение `16`) | Пропы и переключатели, которые можно ударить (`Switch`/`Lever` — `Area2D`) |
 | — | Тень: `collision_layer = 0` (её никто не видит и не бьёт), `collision_mask = 3` |
 
 - Игрок: `collision_layer = 8`, `collision_mask = 3`, его `MeleeAttack.hit_mask = 20` (бьёт врагов и пропы).
@@ -60,6 +70,7 @@
 | `down` | S |
 | `attack` | ЛКМ (действие текущего тела: катана / захват) |
 | `shadow` | ПКМ (выпустить тень / отменить) |
+| `use` | E (зарезервировано, пока не используется — кнопки в обсуждении) |
 
 ## Бойцы: `Fighter` (`scripts/fighter.gd`)
 
@@ -137,7 +148,7 @@
 
 - `extends PlayerPawn`; в `_ready` добавляется в группу `player` (по ней его находят враги) и забирает управление себе (`possess(self)` — важно при перезагрузке уровня, т.к. static переживает её).
 - `_primary_action()` → `melee_attack.attack()` (к мыши).
-- Сок: `melee_attack.hit_landed(hit)` → по врагу (цель в группе `enemy` — `Enemy` и `Turret` добавляют себя в `_ready`): `hit.blocked` → отдача игроку (`knockback × 0.6`) + `Juice.shake(0.2)`; `hit.killed` → `Juice.kill()`; иначе `Juice.hit()`. Сигнал `clinched` → `Juice.clinch()`.
+- Сок: `melee_attack.hit_landed(hit)` → по врагу (цель в группе `enemy` — `Enemy` и `Turret` добавляют себя в `_ready`): `hit.blocked` → отдача игроку (`knockback × 0.6`) + `Juice.shake(0.2)`; `hit.killed` → `Juice.kill()`; иначе `Juice.hit()`. Сигнал `clinched` → `Juice.clinch()`, сигнал `damaged` → `Juice.hurt()`.
 - `_die()` → перезапуск текущей сцены (временно).
 
 ## Тень: `ShadowAbility` + `Shadow` + `GrabAttack`
@@ -236,7 +247,7 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 
 ## Сок: `Juice` (`scripts/juice.gd`, autoload)
 
-Сервисный синглтон, зарегистрирован в `project.godot` → `[autoload]`. Геймплей сообщает о **событии** (`Juice.hit()`, `Juice.kill()`, `Juice.clinch()`), а что при этом происходит — решает Juice. `spawn_effect(scene, pos, dir)` — одноразовый эффект в корень текущей сцены, ось +X по `dir`; частицы (`CPU/GPUParticles2D`) запускаются `restart()` и удаляются по `finished`. Эффекты живут в игровом времени (в slow-mo тоже замедлены). Сюда же в будущем: звук.
+Сервисный синглтон, зарегистрирован в `project.godot` → `[autoload]`. Геймплей сообщает о **событии** (`Juice.hit()`, `Juice.kill()`, `Juice.clinch()`, `Juice.hurt()`), а что при этом происходит — решает Juice (в т.ч. зовёт `ScreenFX.pulse` для полноэкранных вспышек). `spawn_effect(scene, pos, dir)` — одноразовый эффект в корень текущей сцены, ось +X по `dir`; частицы (`CPU/GPUParticles2D`) запускаются `restart()` и удаляются по `finished`. Эффекты живут в игровом времени (в slow-mo тоже замедлены). Сюда же в будущем: звук.
 
 **Удерживаемое замедление** (`hold_time_scale(id, scale)` / `release_time_scale(id)`): держится, пока не отпустят по тому же `id` (тень — `&"shadow"`). Несколько удержаний — действует сильнейшее. Итог каждый кадр: `Engine.time_scale = min(импульс slow_motion, удержания)` — hit-stop работает поверх замедления тенью. **Juice — единственный владелец `Engine.time_scale`**: напрямую его не менять.
 
@@ -269,6 +280,27 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 | `hit()` (и отбитая пуля) | `SHAKE_HIT` 0.35 |
 | `kill()` | `SHAKE_KILL` 0.6 |
 | `clinch()` | `SHAKE_CLINCH` 0.5 |
+| `hurt()` (игрока ранили; без замедления) | `SHAKE_HURT` 0.4 |
+
+## Экранные эффекты: `ScreenFX` (`scripts/fx/`, autoload)
+
+Полноэкранный оверлей, телеграфирующий состояние игры. Autoload (`project.godot` → `[autoload]`, после `Juice`), `CanvasLayer` со слоем `LAYER = 100`, внутри один `ColorRect` на весь экран с шейдером `shaders/screen_fx.gdshader`, который читает уже нарисованный экран (`hint_screen_texture`). **HUD класть на CanvasLayer выше 100**, иначе эффекты лягут и на него.
+
+Два вида эффектов:
+
+- **состояние** — `enter(id, preset_name = id)` / `exit(id)` / `is_active(id)`: держится, пока не сняли; появляется за `fade_in`, уходит за `fade_out`;
+- **импульс** — `pulse(preset_name)` / `pulse_preset(preset)`: `fade_in` → `hold` → `fade_out` и исчезает.
+
+Пресет — `ScreenFXPreset` (Resource, можно делать `.tres` в редакторе): `tint_color` + `tint`, `vignette_color` + `vignette`, `desaturate`, `aberration` (амплитуды 0..1) и огибающая. `register(name, preset)` — добавить/заменить. Каждый кадр все активные эффекты смешиваются в один набор параметров: амплитуды × вес складываются и обрезаются до 1, цвета — среднее, взвешенное по силе. Ничего не активно → `ColorRect` скрыт, шейдер не считается. Время **реальное** (не тормозит в slow-mo). `intensity` (0..1) — общий множитель, 0 выключает всё (доступность/настройки). `clear()` — сбросить мгновенно.
+
+| Пресет | Вид | Что | Кто вызывает |
+|---|---|---|---|
+| `shadow` | состояние | фиолетовая виньетка, мир серее | `ShadowAbility`: enter в CONTROLLING, exit при захвате/отмене/таймауте/`_exit_tree` |
+| `clinch` | импульс | белая вспышка + аберрация | `Juice.clinch()` |
+| `kill` | импульс | аберрация + обесцвечивание | `Juice.kill()` |
+| `hurt` | импульс | красная виньетка | `Juice.hurt()` ← `damaged` игрока |
+
+Правило: события геймплея идут через `Juice` (он решает, какая вспышка), длительные состояния включает владелец состояния напрямую через `enter/exit`.
 
 ## Реакции на удар: `HitInfo` / `HitReaction` (`scripts/hits/`)
 
@@ -279,7 +311,7 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 1. `MeleeAttack._try_hit` или `BulletWorld` (при попадании пули) создают `HitInfo`:
    `attacker` (у пуль `null`), `target`, `position` (для удара — центр цели, для пули — точка попадания), `direction` (направление удара/полёта пули), `damage`, `kind` (`&"melee"` / `&"bullet"`).
 2. Если у цели есть `take_damage` — наносится урон; `hit.blocked = not take_damage(...)`, затем `hit.killed = target.is_dead`.
-3. `HitReaction.dispatch(target, hit)` вызывает `react(hit)` у **всех дочерних `HitReaction`** цели. У цели может не быть `take_damage` — реакции всё равно сработают (проп).
+3. `HitReaction.dispatch(target, hit)` вызывает `target.on_hit(hit)`, если у цели есть такой метод (цель реагирует сама — так работает `Switch`), и `react(hit)` у **всех дочерних `HitReaction`** цели. У цели может не быть `take_damage` — реакции всё равно сработают (проп).
 
 **`HitReaction`** (база, `extends Node`) — фильтры в инспекторе: `enabled`, `trigger` (`ANY` / `NON_LETHAL` / `LETHAL` — только прошедшие удары; `BLOCKED` — только заблокированные), `kinds` (пусто = все виды). Новая реакция = скрипт `extends HitReaction` с `_react(hit)`.
 
@@ -300,9 +332,31 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 
 **Как сделать проп** (на будущее): `StaticBody2D`/`RigidBody2D` на слое 5 + дочерние реакции, например `HitEffect(щепки)` + своя `extends HitReaction` (толкнуть: `apply_impulse(hit.direction * …)`, разрушиться, погаснуть). Урон/HP не обязательны. Juice-замедление при ударе по пропу не срабатывает (игрок зовёт Juice только для `Fighter`) — если нужно, сделать реакцию, которая зовёт `Juice.shake()`.
 
+## Объекты уровня: переключатели и цели (`scripts/level/`, `level/`)
+
+Задача — связывать объекты уровня в редакторе без кода: рычаг открывает дверь, в будущем кнопка включает платформу и т.п.
+
+**`Switch`** (`extends Area2D`) — база любого переключателя:
+
+- в `_ready` сам ставит себе слой 5 (`collision_layer = 16`), `monitorable = true`, `monitoring = false` — хитбокс удара его «видит», ходьбе и пулям (лучи без areas) он не мешает;
+- `targets: Array[NodePath]` — ноды, которыми управляет. Цель — **любая нода с `set_active(on: bool)`**. При переключении у всех целей вызывается `set_active(is_on)`, эмитится `switched(on)` (можно подключать в редакторе); начальное состояние (`start_on`) отправляется целям отложенно в `_ready`;
+- `mode`: `TOGGLE` (каждое срабатывание переключает), `ONCE` (только включить, один раз), `TIMED` (включить на `timed_duration` сек игрового времени);
+- удар приходит через `HitReaction.dispatch` → `on_hit(hit)`; `hit_kinds` фильтрует виды ударов (по умолчанию только `&"melee"`);
+- `activate()` — «сработать» (для будущих кнопок/триггеров), `set_on(on)` — выставить состояние напрямую, `_update_visual(animated)` — переопределяется для визуала.
+
+**`Lever`** (`level/lever.tscn`, `extends Switch`) — рычаг: ручка `Handle` наклоняется `angle_off` (-35°) / `angle_on` (35°) с твином, `Juice.shake(0.15)` при переключении, искры через дочерний `HitEffect`.
+
+**`Door`** (`level/door.tscn`, `extends AnimatableBody2D`) — пример цели: слой 1 (держит тела, закрывает обзор врагам, останавливает пули). `set_active(on)` → открыта, если `on != inverted`: сдвиг на `open_offset` (по умолчанию `(0, -64)`) за `move_time` (0.3 с), твин в physics-процессе, `sync_to_physics`.
+
+В `world.tscn`: дверь `Door` на (-150, -29) между стартом и бронированным врагом, рычаг `Lever` на (-330, -8) слева от старта, `targets = [../Door]`.
+
+Как добавить: новый переключатель (кнопка, нажимная плита) = `extends Switch`, вызывает `activate()` по своему событию. Новая цель (платформа, свет, спавнер, турель) = любая нода с `set_active(on)`.
+
 ## Атака (`melee_attack.gd`)
 
 Дочерняя нода бойца (путь `$MeleeAttack` обязателен для `Fighter`). Хитбокс `Area2D` создаётся один раз в `_ready`. `attack(direction := Vector2.ZERO)` поворачивает его по `direction` (локальные координаты; `ZERO` → к мыши), включает на `active_time`, затем кулдаун. `can_attack()` — готов ли удар, `is_active()` — идёт ли удар сейчас, `cancel()` — погасить удар (клинч). Попадание: если у цели есть `is_attacking()` и он `true`, а у владельца есть `clinch()` → клинч (сигнал `clinched`), иначе цель получает `take_damage(damage, global_position)` и эмитится `hit_landed(hit: HitInfo)` (в т.ч. при блоке — см. `hit.blocked`). Компонент не зависит от `Fighter` напрямую — только duck-typing. Одна цель бьётся максимум раз за взмах; своего владельца (`get_parent()`) хитбокс игнорирует.
+
+**Отладка таймингов** (группа `Debug` в инспекторе; видно при Debug → Visible Collision Shapes): форма хитбокса перекрашивается через `CollisionShape2D.debug_color` — `debug_color_active` (красный) пока удар активен, `debug_color_idle` (почти прозрачный серый) когда выключен и просто висит, `debug_color_cancelled` (синий) если погашен клинчем. Пока удар активен и `deflect_bullets = true`, в `_draw()` рисуется контур зоны отбивания пуль (`hitbox_size + deflect_padding`) цветом `debug_deflect_zone`. Работает для всех `MeleeAttack` — и игрока, и врагов.
 
 ## Известные TODO
 
@@ -310,8 +364,10 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 - Анимации (`AnimatedSprite2D` пустой, стоит `PlaceholderTexture2D`).
 - Враг запрыгивает только на one-way платформы. На сплошной уступ выше себя — нет, только перепрыгивает стену перед собой.
 - В текущем `world.tscn` от пола ямы до платформ 128 px, а прыжок ≈ 82 px: туда не допрыгнуть ни врагу, ни игроку.
-- Juice: частицы, звук; тряска при получении урона игроком.
+- Juice: звук.
+- ScreenFX: состояние оглушения игрока (механики пока нет), «мало HP»; вынести `intensity` в настройки.
 - Пропы на слое 5 (ящики, лампы) с собственными `HitReaction`.
+- Переключатели: кнопки (действие `use` на E уже заведено), нажимные плиты; другие цели (движущиеся платформы, свет, спавнеры); `set_active` у турели.
 - Пули: другие аффекторы (магнит, поле замедления), `MultiMeshInstance2D` при большом количестве.
 - Нет неуязвимости после урона.
 - Турель: ограничение угла поворота ствола (сейчас 360°), разрушение с эффектом посильнее.
@@ -330,3 +386,6 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 - **2026-09-24** — Механика тени: `PlayerPawn` (передача управления через `PlayerPawn.possessed`), `Shadow` + `GrabAttack` (захват врага), `ShadowAbility` (цикл READY → CONTROLLING → HOLDING → COOLDOWN), инпут `shadow` (ПКМ). `Juice.hold_time_scale/release_time_scale` — удерживаемое замедление поверх импульсов. `Fighter`: `facing`, `unscaled_time`, `take_damage` возвращает `bool`. `Enemy`: состояние GRABBED, разворот к игроку. Бронированный враг (`enemy_armored`) с блоком спереди; `HitInfo.blocked`, триггер реакций `BLOCKED`; `hit_landed` передаёт `HitInfo`.
 - **2026-09-24** — Турели (`turret.tscn`, `scripts/turret.gd`): стационарные, очереди пуль, поворотный ствол с ограниченной скоростью, заклинивают от захвата тенью. Группа `enemy` у всех врагов; Juice при ударе теперь по группе `enemy`, а не по классу `Fighter`.
 - **2026-09-24** — Турель: режим стрельбы `fire_mode` (`BURST` / `CONTINUOUS` — без перерыва, `fire_interval`).
+- **2026-09-24** — Объекты уровня: `Switch` (база переключателей, `targets` → `set_active`, режимы TOGGLE/ONCE/TIMED), `Lever` (удар катаной), `Door` (пример цели); рычаг и дверь в `world.tscn`. `HitReaction.dispatch` вызывает `on_hit(hit)` у самой цели. Документ с диаграммами `docs/architecture.typ` (Typst + cetz). Расширен `.gitignore` (мусор ОС/редакторов, сборки, собранный PDF).
+- **2026-09-24** — `MeleeAttack`: отладочные цвета хитбокса (активен / выключен / погашен клинчем) и контур зоны отбивания пуль при Visible Collision Shapes.
+- **2026-09-24** — Autoload `ScreenFX` (`scripts/fx/`, `shaders/screen_fx.gdshader`): полноэкранные эффекты-телеграфы — состояния (`enter/exit`) и импульсы (`pulse`), пресеты `ScreenFXPreset`. Пресеты: `shadow` (управление тенью), `clinch`, `kill`, `hurt`. Новое событие `Juice.hurt()` (урон по игроку: тряска + красная виньетка).

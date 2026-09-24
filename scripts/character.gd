@@ -11,6 +11,7 @@ func _ready() -> void:
 	melee_attack.hit_landed.connect(_on_hit_landed)
 	melee_attack.deflected.connect(Juice.hit)
 	clinched.connect(func(_other: Fighter) -> void: Juice.clinch())
+	damaged.connect(func(_amount: int) -> void: Juice.hurt())
 
 
 func _on_hit_landed(hit: HitInfo) -> void:

@@ -69,6 +69,7 @@ const CLINCH := Vector3(0.15, 0.10, 0.20) # клинч — столкновен�
 const SHAKE_HIT := 0.35
 const SHAKE_KILL := 0.6
 const SHAKE_CLINCH := 0.5
+const SHAKE_HURT := 0.4
 const SHAKE_MAX_OFFSET := Vector2(8.0, 6.0) # px в мире при trauma = 1 (на экране × zoom камеры)
 const SHAKE_DECAY := 1.6 # сколько trauma уходит за реальную секунду
 const SHAKE_FREQUENCY := 25.0 # скорость движения по шуму — чем больше, тем «дрожательнее»
@@ -103,11 +104,19 @@ func hit() -> void:
 func kill() -> void:
 	_apply_preset(KILL)
 	shake(SHAKE_KILL)
+	ScreenFX.pulse(&"kill")
 
 
 func clinch() -> void:
 	_apply_preset(CLINCH)
 	shake(SHAKE_CLINCH)
+	ScreenFX.pulse(&"clinch")
+
+
+## Игрока ранили: тряска + красная виньетка (без замедления — не мешать уворачиваться).
+func hurt() -> void:
+	shake(SHAKE_HURT)
+	ScreenFX.pulse(&"hurt")
 
 
 # ── Низкоуровневые эффекты ──
