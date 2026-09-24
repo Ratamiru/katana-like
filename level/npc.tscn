@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/dialogue/dialogue_trigger.gd" id="1_trigger"]
+[ext_resource type="Script" path="res://scripts/level/npc.gd" id="1_trigger"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_talk"]
 size = Vector2(64, 40)

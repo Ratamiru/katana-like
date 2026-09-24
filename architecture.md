@@ -44,7 +44,7 @@
 | `docs/architecture.typ` | Документ Typst с диаграммами архитектуры |
 | `addons/dialogue/` | Аддон диалогов (переносимый): парсер `.dlg`, раннер, autoload `Dialogue`, окно, `DialogueTrigger`. Справка по синтаксису — `addons/dialogue/README.md` |
 | `dialogues/` | Тексты диалогов `.dlg` (`old_man.dlg` — демо) |
-| `level/npc.tscn` | NPC-плейсхолдер = `DialogueTrigger` (подойти, E) с подсказкой «E» |
+| `level/npc.tscn` | NPC-плейсхолдер: `scripts/level/npc.gd` (`extends DialogueTrigger`, подойти, E) с подсказкой «E» |
 | `scripts/create_tiles.gd` | EditorScript: генерирует `art/placeholder_tiles.png` (4 цветных тайла 32×32) |
 | `art/` | Графика (пока плейсхолдеры) |
 
@@ -378,7 +378,14 @@ Dialogue.start(res, node, locals) ──► DialogueRunner ◄──┘   (ис�
 - `DialogueBalloon` (`CanvasLayer`, собирается кодом) — панель внизу, имя, текст с печатной машинкой (реальное время, BBCode), варианты кнопками. Дальше / допечатать — `ui_accept`, `use`, ЛКМ. Замена: `Dialogue.balloon_scene` (сцена с методом `run(runner)`).
 - `DialogueTrigger` (`Area2D`) — `ON_USE` (игрок из `body_group` в зоне + `use_action`), `ON_ENTER`, `MANUAL`; `once`; подсказка `prompt`; `set_active(true)` — может быть целью `Switch`. В диалог передаётся локальное имя `trigger`.
 
-**В этом проекте:** `level/npc.tscn` — NPC (корень — `DialogueTrigger`, `collision_mask = 8` — игрок), подсказка «E». В `world.tscn` — `OldMan` на (-290, -8) между рычагом и стартом, диалог `dialogues/old_man.dlg`: вопросы с `[once]`, после «Кто ты?» открывается вариант, в котором старик открывает дверь (`do node("Door").set_active(true)`), при повторном разговоре — узел `again` по `visited("start")`.
+**В этом проекте:** `level/npc.tscn` — NPC, корень — `scripts/level/npc.gd` (`extends DialogueTrigger`, `collision_mask = 8` — игрок), подсказка «E». `npc.gd` добавляет правило игры, которого аддон не знает: `can_start()` только когда `PlayerPawn.possessed` — основное тело (управляя тенью, заговорить нельзя). В `world.tscn` — `OldMan` на (-290, -8) между рычагом и стартом, диалог `dialogues/old_man.dlg`: вопросы с `[once]`, после «Кто ты?» открывается вариант, в котором старик открывает дверь через рычаг (`do node("Lever").set_on(true)`), при повторном разговоре — узел `again` по `visited("start")`.
+
+**Правила для диалогов проекта:**
+
+- `Dialogue.vars` — autoload, **переживают рестарт уровня** (смерть, R). Туда — только знание/сюжет (`knows_guard`, счётчики разговоров, `__once`, `__visits`). Состояние уровня (открыта ли дверь, жив ли враг) читать из мира: `node("Lever").is_on`, иначе после рестарта диалог будет врать.
+- Менять мир через те же объекты, что и игрок (`Lever.set_on(true)`, а не `Door.set_active`) — чтобы переключатели не расходились с целями и срабатывали `ObjectiveSignal` на их сигналах.
+- Правила игры (тень, бой) — в наследниках классов аддона в `scripts/`, сам `addons/dialogue/` остаётся переносимым.
+- Во время диалога дерево на паузе — враги, пули, таймеры тени стоят; `Juice`/`ScreenFX`/окно работают (`PROCESS_MODE_ALWAYS`).
 
 ## Атака (`melee_attack.gd`)
 
@@ -419,3 +426,4 @@ Dialogue.start(res, node, locals) ──► DialogueRunner ◄──┘   (ис�
 - **2026-09-24** — `MeleeAttack`: отладочные цвета хитбокса (активен / выключен / погашен клинчем) и контур зоны отбивания пуль при Visible Collision Shapes.
 - **2026-09-24** — Autoload `ScreenFX` (`scripts/fx/`, `shaders/screen_fx.gdshader`): полноэкранные эффекты-телеграфы — состояния (`enter/exit`) и импульсы (`pulse`), пресеты `ScreenFXPreset`. Пресеты: `shadow` (управление тенью), `clinch`, `kill`, `hurt`. Новое событие `Juice.hurt()` (урон по игроку: тряска + красная виньетка).
 - **2026-09-24** — Система диалогов — переносимый аддон `addons/dialogue/`: текстовый формат `.dlg` (узлы, выборы с `[if]`/`[once]`, `if/elif/else`, `set`, `do`, `{подстановки}`, теги), загрузчик ресурса, компиляция в плоский «байткод», `DialogueRunner`, autoload `Dialogue` (переменные, выражения, пауза), стандартное окно `DialogueBalloon`, `DialogueTrigger`. Плагин включён в `project.godot`. Демо: NPC `level/npc.tscn` + `dialogues/old_man.dlg` в `world.tscn` (может открыть дверь). Действие `use` (E) теперь — разговор с NPC.
+- **2026-09-24** — Ревью диалогов под проект: `scripts/level/npc.gd` (нельзя заговорить, управляя тенью), `old_man.dlg` читает состояние двери из мира (`node("Lever").is_on`) и открывает её через рычаг — после рестарта диалог не «врёт», рычаг и дверь не расходятся. Раздел «Правила для диалогов проекта».

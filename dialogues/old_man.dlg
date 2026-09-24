@@ -1,5 +1,10 @@
 # Демо-диалог: старик у старта. Показывает все возможности формата .dlg.
 # Синтаксис — addons/dialogue/README.md
+#
+# Правило проекта: состояние УРОВНЯ (открыта ли дверь) читаем из мира — node(...),
+# а не из переменных: Dialogue.vars переживают рестарт уровня, а дверь — нет.
+# В vars — только то, что игрок «знает» (knows_guard, talks).
+# Дверь открываем через рычаг, а не напрямую, — чтобы рычаг и дверь не разошлись.
 
 ~ start
 if visited("start") > 1:
@@ -17,11 +22,10 @@ if visited("start") > 1:
 	Старик: Люди с оружием. Много людей.
 	Старик: Одни в броне — таких бей [color=#ff8080]в спину[/color].
 	=> questions
-- Откроешь дверь? [if knows_guard and not door_open]
+- Откроешь дверь? [if knows_guard and not node("Lever").is_on]
 	Старик: Ключ у меня остался. Держись.
-	do node("Door").set_active(true)
+	do node("Lever").set_on(true)
 	do Juice.shake(0.3)
-	set door_open = true
 	=> bye
 - Мне пора.
 	=> bye
@@ -31,7 +35,7 @@ if visited("start") > 1:
 set talks += 1
 
 ~ again
-if door_open:
+if node("Lever").is_on:
 	Старик: Дверь я тебе уже открыл. Чего ещё?
 else:
 	Старик: Снова ты. Это уже {talks + 1}-й разговор, если считать.
