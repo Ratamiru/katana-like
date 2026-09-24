@@ -14,8 +14,8 @@ func _ready() -> void:
 
 
 func _on_hit_landed(hit: HitInfo) -> void:
-	# Замедление/тряска — только по бойцам. У пропов своя реакция (HitReaction).
-	if hit.target is not Fighter:
+	# Замедление/тряска — только по врагам (группа "enemy"). У пропов своя реакция (HitReaction).
+	if not hit.target.is_in_group("enemy"):
 		return
 	if hit.blocked:
 		# Удар в броню — отдача и лёгкая тряска вместо hit-stop.

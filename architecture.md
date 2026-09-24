@@ -12,6 +12,7 @@
 | `character.tscn` | Игрок (`CharacterBody2D`), камера, компонент атаки, `ShadowAbility` |
 | `shadow.tscn` | Тень — второе тело игрока (фиолетовая, полупрозрачная), `GrabAttack`, своя камера |
 | `enemy_armored.tscn` | Бронированный враг (серый, щит спереди) |
+| `turret.tscn` | Турель (`StaticBody2D`): основание, поворотный ствол `Barrel` с `Muzzle` |
 | `enemy.tscn` | Враг ближнего боя (красный плейсхолдер), компонент атаки |
 | `scripts/fighter.gd` | `Fighter` — общий базовый класс бойца: движение, здоровье, смерть |
 | `scripts/player_pawn.gd` | `PlayerPawn` (`extends Fighter`) — тело, которым может управлять игрок; передача управления |
@@ -19,6 +20,7 @@
 | `scripts/shadow.gd` | `Shadow` (`extends PlayerPawn`): тело-тень, на `attack` — захват |
 | `scripts/shadow_ability.gd` | `ShadowAbility` — компонент игрока: цикл тени (спавн, замедление, передача управления, кулдаун) |
 | `scripts/grab_attack.gd` | `GrabAttack` — компонент захвата (shape query, `target.grab(hold_time)`) |
+| `scripts/turret.gd` | `Turret` — стационарный враг, очереди пуль через `BulletWorld`, заклинивает от захвата тенью |
 | `scripts/enemy_armored.gd` | Бронированный враг (`extends Enemy`): блок спереди, уязвим сзади |
 | `scripts/enemy.gd` | `Enemy` (`extends Fighter`): примитивный AI (IDLE → CHASE → ATTACK, STUNNED после клинча), по умолчанию ближний бой |
 | `enemy_shooter.tscn` | Стрелок (оранжевый плейсхолдер), без `MeleeAttack` |
@@ -39,7 +41,7 @@
 |---|---|
 | 1 | Сплошные тайлы (пол, стены) |
 | 2 | One-way платформы, сквозь которые можно спрыгнуть (`down` + `jump`) |
-| 3 (значение `4`) | Враги |
+| 3 (значение `4`) | Враги (в т.ч. турели) |
 | 4 (значение `8`) | Игрок |
 | 5 (значение `16`) | Пропы, которые можно ударить (пока нет) |
 | — | Тень: `collision_layer = 0` (её никто не видит и не бьёт), `collision_mask = 3` |
@@ -135,7 +137,7 @@
 
 - `extends PlayerPawn`; в `_ready` добавляется в группу `player` (по ней его находят враги) и забирает управление себе (`possess(self)` — важно при перезагрузке уровня, т.к. static переживает её).
 - `_primary_action()` → `melee_attack.attack()` (к мыши).
-- Сок: `melee_attack.hit_landed(hit)` → по бойцу: `hit.blocked` → отдача игроку (`knockback × 0.6`) + `Juice.shake(0.2)`; `hit.killed` → `Juice.kill()`; иначе `Juice.hit()`. Сигнал `clinched` → `Juice.clinch()`.
+- Сок: `melee_attack.hit_landed(hit)` → по врагу (цель в группе `enemy` — `Enemy` и `Turret` добавляют себя в `_ready`): `hit.blocked` → отдача игроку (`knockback × 0.6`) + `Juice.shake(0.2)`; `hit.killed` → `Juice.kill()`; иначе `Juice.hit()`. Сигнал `clinched` → `Juice.clinch()`.
 - `_die()` → перезапуск текущей сцены (временно).
 
 ## Тень: `ShadowAbility` + `Shadow` + `GrabAttack`
@@ -182,6 +184,23 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 | `_can_start_attack()` | `melee_attack.can_attack()` |
 | `_perform_attack(to_target)` | `melee_attack.attack(to_target)` |
 | `_should_approach(to_target)` | `abs(to_target.x) > attack_range / 2` |
+
+## Турель (`scripts/turret.gd`, `turret.tscn`)
+
+**Не `Fighter`** — `StaticBody2D` (слой 3, маска 0): не двигается, не падает, можно ставить на пол/стену/потолок (поворачиваешь ноду — ствол целится в глобальных координатах). Своё HP (`max_health` 10 — один удар), `take_damage` (всегда проходит), `is_dead`, `died`, группа `enemy`.
+
+Состояния:
+
+- **IDLE** → **WARMUP**, когда игрок ближе `sight_range` (300) и виден (луч по `sight_mask` от ствола). Жёлтая вспышка `warmup` (0.5 с) — предупреждение.
+- **FIRING** — зависит от `fire_mode`:
+  - `BURST` (по умолчанию) — очереди по `burst_count` (3) пули с интервалом `burst_interval` (0.08 с), между очередями `burst_cooldown` (0.7 с);
+  - `CONTINUOUS` — без перерыва, по пуле каждые `fire_interval` (0.1 с), пока видит игрока и ствол наведён. Пули `bullet_speed` 500, урон 10, разброс ±2°, `hit_mask = 8`, вылетают из `Barrel/Muzzle`.
+- Игрок пропал из вида → IDLE (следующий раз снова warmup).
+- **JAMMED** — схвачена тенью (`grab(duration)`): не стреляет, фиолетовая. Потом IDLE.
+
+Ствол поворачивается к игроку не мгновенно, а со скоростью `turn_speed` (180°/с), и стреляет, только когда наведён точнее `aim_tolerance` (6°) — от очереди можно уйти, резко сменив сторону. Работает в игровом времени — в замедлении тенью турель тоже медленная.
+
+Как убить: подойти и ударить, отбить её же пули катаной (отбитые бьют слой 3), или заклинить тенью и подойти. Удар/убийство даёт Juice (группа `enemy`). Реакция `HitSparks` — искры вместо крови.
 
 ## Бронированный враг (`scripts/enemy_armored.gd`, `enemy_armored.tscn`)
 
@@ -295,6 +314,7 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 - Пропы на слое 5 (ящики, лампы) с собственными `HitReaction`.
 - Пули: другие аффекторы (магнит, поле замедления), `MultiMeshInstance2D` при большом количестве.
 - Нет неуязвимости после урона.
+- Турель: ограничение угла поворота ствола (сейчас 360°), разрушение с эффектом посильнее.
 - Тень: HUD кулдауна (есть сигнал `ShadowAbility.state_changed`), ограничение дальности от тела, визуальная связь тело↔тень.
 - Смерть игрока — просто перезагрузка сцены, без экрана/анимации.
 
@@ -308,3 +328,5 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 - **2026-09-24** — `Juice`: тряска камеры (trauma² × шум, по реальному времени) при попадании, добивании, клинче и отбитой пуле.
 - **2026-09-24** — Система реакций на удар (`HitInfo`, `HitReaction`, `HitEffect` в `scripts/hits/`) + эффекты частиц (`effects/`): кровь при попадании и сильнее при убийстве, искры при отражении пули, клинче и попадании пули в стену. `Juice.spawn_effect`. Зона отражения пуль расширена (`deflect_padding`). Удар игрока бьёт и слой 5 (пропы). Juice-замедление только по `Fighter`. Убран некорректный `#`-комментарий из `enemy.tscn`.
 - **2026-09-24** — Механика тени: `PlayerPawn` (передача управления через `PlayerPawn.possessed`), `Shadow` + `GrabAttack` (захват врага), `ShadowAbility` (цикл READY → CONTROLLING → HOLDING → COOLDOWN), инпут `shadow` (ПКМ). `Juice.hold_time_scale/release_time_scale` — удерживаемое замедление поверх импульсов. `Fighter`: `facing`, `unscaled_time`, `take_damage` возвращает `bool`. `Enemy`: состояние GRABBED, разворот к игроку. Бронированный враг (`enemy_armored`) с блоком спереди; `HitInfo.blocked`, триггер реакций `BLOCKED`; `hit_landed` передаёт `HitInfo`.
+- **2026-09-24** — Турели (`turret.tscn`, `scripts/turret.gd`): стационарные, очереди пуль, поворотный ствол с ограниченной скоростью, заклинивают от захвата тенью. Группа `enemy` у всех врагов; Juice при ударе теперь по группе `enemy`, а не по классу `Fighter`.
+- **2026-09-24** — Турель: режим стрельбы `fire_mode` (`BURST` / `CONTINUOUS` — без перерыва, `fire_interval`).

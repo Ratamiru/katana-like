@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://bhsut4f1cpx8x" path="res://scripts/bullet_world.gd" id="5_bullets"]
 [ext_resource type="PackedScene" path="res://effects/sparks.tscn" id="6_sparks"]
 [ext_resource type="PackedScene" path="res://enemy_armored.tscn" id="7_armored"]
+[ext_resource type="PackedScene" path="res://turret.tscn" id="8_turret"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f3sb7"]
 texture = ExtResource("1_f3sb7")
@@ -57,8 +58,15 @@ position = Vector2(93, -26)
 [node name="EnemyShooter2" parent="." unique_id=521537340 instance=ExtResource("4_shooter")]
 position = Vector2(733, -185)
 
-[node name="EnemyArmored" parent="." instance=ExtResource("7_armored")]
+[node name="EnemyArmored" parent="." unique_id=1770240770 instance=ExtResource("7_armored")]
 position = Vector2(-60, -26)
+
+[node name="Turret" parent="." unique_id=106907145 instance=ExtResource("8_turret")]
+position = Vector2(508, -67)
+fire_mode = 1
+
+[node name="Turret2" parent="." unique_id=1742079826 instance=ExtResource("8_turret")]
+position = Vector2(765, -68)
 
 [node name="BulletWorld" type="Node2D" parent="." unique_id=368480397]
 script = ExtResource("5_bullets")

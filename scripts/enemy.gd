@@ -30,6 +30,11 @@ var _stun_left := 0.0
 var _grab_left := 0.0
 
 
+func _ready() -> void:
+	super()
+	add_to_group("enemy")
+
+
 func _update_intent(delta: float) -> void:
 	move_dir = 0.0
 	if _target == null or not is_instance_valid(_target) or _target.is_dead:
