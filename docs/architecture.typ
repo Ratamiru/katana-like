@@ -429,6 +429,47 @@ Autoload-оверлей: `CanvasLayer` (слой 100) → один `ColorRect` �
 - Новая цель (платформа, свет, спавнер) = любая нода с `set_active(on: bool)`.
 - `Door` — `AnimatableBody2D` на слое 1: открывается сдвигом на `open_offset`, `inverted` — наоборот.
 
+= Диалоги: `addons/dialogue/`
+
+Переносимый аддон: копируется папкой, включается плагином *Dialogue* (autoload `Dialogue`). Справка по синтаксису — `addons/dialogue/README.md`.
+
+#figure(canvas(length: 0.9cm, {
+  import draw: *
+  box((0, 1.4), "src", [`npc.dlg`\ текст], bg: c-engine, w: 2.2, h: 1.0)
+  box((4.2, 1.4), "par", [`DialogueParser`], bg: c-comp, w: 3.2)
+  box((10.4, 1.4), "res", [`DialogueResource`\ `code` · `nodes`], bg: c-base, w: 3.6, h: 1.0)
+  box((10.4, -1.0), "run", [`DialogueRunner`\ `_ip` · `next()` · `choose(i)`], bg: c-base, w: 3.6, h: 1.0)
+  box((4.2, -1.0), "mgr", [autoload `Dialogue`\ `vars` · `evaluate()`], bg: c-service, w: 3.4, h: 1.0)
+  box((0, -1.0), "trg", [`DialogueTrigger`], bg: c-leaf, w: 2.6)
+  box((10.4, -3.2), "ui", [`DialogueBalloon`], bg: c-leaf, w: 3.6)
+  arrow("src.east", "par.west", label: [`load()`])
+  arrow("par.east", "res.west")
+  arrow("res.south", "run.north")
+  arrow("trg.east", "mgr.west", label: [`start()`])
+  arrow((5.9, -0.8), (8.6, -0.8), label: [создаёт])
+  arrow((8.6, -1.2), (5.9, -1.2), dashed: true, loff: (0, -0.22), label: [выражения])
+  arrow("ui.north", "run.south", label: [`next` / `choose`], loff: (1.1, 0))
+  arrow("mgr.south", (4.2, -3.2), "ui.west", label: [окно], lpos: 75%)
+}), caption: [Файл компилируется при загрузке; раннер исполняет «байткод», окно только показывает `DialogueLine`.])
+
+#figure(
+  table(columns: (auto, 1fr),
+    [Строка `.dlg`], [Инструкции],
+    [`Имя: текст #тег`], [`line`],
+    [`- вариант [if x] [once]` + тело], [`choice` → тела, в конце каждого `jump` на выход],
+    [`if` / `elif` / `else`], [`if` (переход на `else_to`) + `jump` в конец],
+    [`=> узел` / `=> END`], [`goto` / `end`],
+    [`set x += 1`], [`set` (`x + (1)`)],
+    [`do выражение`], [`do`],
+  ),
+  caption: [Компиляция в плоский список: состояние диалога — один индекс `_ip`.],
+)
+
+- Выражения — Godot `Expression`, имена: `locals` → `vars` → autoload'ы → синглтоны → глобальные классы → `0`. Без точки — методы менеджера: `emit`, `node`, `visited`, `get_var`.
+- `Dialogue.start()` ставит дерево на паузу; окно и менеджер — `PROCESS_MODE_ALWAYS`. После конца — кадр задержки, чтобы закрывающее нажатие не стало прыжком.
+- `Dialogue.vars` хранит переменные и служебные `__once` / `__visits` — это и есть сохранение выборов.
+- В проекте: NPC `level/npc.tscn` (корень — `DialogueTrigger`), в `world.tscn` — старик с `dialogues/old_man.dlg`, может открыть дверь через `do node("Door").set_active(true)`.
+
 = Инпут
 
 #table(columns: (auto, auto, 1fr),
@@ -438,5 +479,5 @@ Autoload-оверлей: `CanvasLayer` (слой 100) → один `ColorRect` �
   [`down` + `jump`], [S + Space], [спрыгнуть с платформы],
   [`attack`], [ЛКМ], [действие управляемого тела: катана / захват],
   [`shadow`], [ПКМ], [выпустить / отменить тень],
-  [`use`], [E], [зарезервировано (кнопки — в обсуждении)],
+  [`use`], [E], [заговорить с NPC; в диалоге — дальше],
 )

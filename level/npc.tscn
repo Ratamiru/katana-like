@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/dialogue/dialogue_trigger.gd" id="1_trigger"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_talk"]
+size = Vector2(64, 40)
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_body"]
+
+[node name="Npc" type="Area2D" node_paths=PackedStringArray("prompt")]
+collision_layer = 0
+collision_mask = 8
+monitorable = false
+script = ExtResource("1_trigger")
+prompt = NodePath("Prompt")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_talk")
+
+[node name="Body" type="Sprite2D" parent="."]
+self_modulate = Color(0.55, 0.6, 0.45, 1)
+scale = Vector2(14, 22)
+texture = SubResource("PlaceholderTexture2D_body")
+
+[node name="Prompt" type="Label" parent="."]
+visible = false
+offset_left = -4.0
+offset_top = -34.0
+offset_right = 4.0
+offset_bottom = -20.0
+theme_override_font_sizes/font_size = 10
+text = "E"
+horizontal_alignment = 1

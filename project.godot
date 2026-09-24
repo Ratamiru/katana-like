@@ -19,11 +19,16 @@ config/icon="res://icon.svg"
 
 Juice="*res://scripts/juice.gd"
 ScreenFX="*res://scripts/fx/screen_fx.gd"
+Dialogue="*res://addons/dialogue/dialogue_manager.gd"
 
 [display]
 
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/dialogue/plugin.cfg")
 
 [input]
 

@@ -10,6 +10,8 @@
 [ext_resource type="PackedScene" path="res://turret.tscn" id="8_turret"]
 [ext_resource type="PackedScene" path="res://level/lever.tscn" id="9_lever"]
 [ext_resource type="PackedScene" path="res://level/door.tscn" id="10_door"]
+[ext_resource type="PackedScene" path="res://level/npc.tscn" id="11_npc"]
+[ext_resource type="Resource" path="res://dialogues/old_man.dlg" id="12_old_man"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f3sb7"]
 texture = ExtResource("1_f3sb7")
@@ -76,6 +78,10 @@ position = Vector2(-150, -29)
 [node name="Lever" parent="." unique_id=531213442 instance=ExtResource("9_lever")]
 position = Vector2(-330, -8)
 targets = Array[NodePath]([NodePath("../Door")])
+
+[node name="OldMan" parent="." instance=ExtResource("11_npc")]
+position = Vector2(-290, -8)
+dialogue = ExtResource("12_old_man")
 
 [node name="BulletWorld" type="Node2D" parent="." unique_id=368480397]
 script = ExtResource("5_bullets")
