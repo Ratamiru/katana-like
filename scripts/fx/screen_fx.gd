@@ -33,6 +33,7 @@ var _mat: ShaderMaterial
 var _states := {} # id -> {preset, weight, target}
 var _pulses: Array[Dictionary] = [] # {preset, t}
 var _last_usec := 0
+var _transition_id := 0 # отменяет незавершённый transition_to (clear / новый переход)
 
 
 func _ready() -> void:
@@ -68,6 +69,10 @@ func _register_defaults() -> void:
 	register(&"kill", ScreenFXPreset.make({
 		aberration = 0.45, desaturate = 0.35,
 		fade_in = 0.0, hold = 0.05, fade_out = 0.3,
+	}))
+	# Переход между уровнями: полностью чёрный экран.
+	register(&"black", ScreenFXPreset.make({
+		tint_color = Color.BLACK, tint = 1.0, fade_in = 0.5, fade_out = 0.5,
 	}))
 	# Игрока ранили: красная виньетка.
 	register(&"hurt", ScreenFXPreset.make({
@@ -118,8 +123,31 @@ func pulse_preset(p: ScreenFXPreset) -> void:
 	_pulses.append({preset = p, t = 0.0})
 
 
-## Сбросить всё мгновенно.
+## Переход через чёрный экран: затемнить → сменить сцену (пусто — перезапуск текущей)
+## → проявить новую. Живёт в autoload, поэтому переживает смену сцены.
+func transition_to(scene_path: String = "") -> void:
+	_transition_id += 1
+	var id := _transition_id
+	enter(&"black")
+	var p: ScreenFXPreset = presets[&"black"]
+	await get_tree().create_timer(p.fade_in + 0.05, true, false, true).timeout
+	if id != _transition_id:
+		return
+	if scene_path != "":
+		get_tree().change_scene_to_file(scene_path)
+	else:
+		get_tree().reload_current_scene()
+	# Пара кадров, чтобы новая сцена успела построиться, потом проявляем.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if id != _transition_id:
+		return
+	exit(&"black")
+
+
+## Сбросить всё мгновенно (и отменить незавершённый переход).
 func clear() -> void:
+	_transition_id += 1
 	_states.clear()
 	_pulses.clear()
 	_rect.visible = false

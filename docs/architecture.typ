@@ -166,7 +166,7 @@
   for (p, q) in (("a", "b"), ("b", "c"), ("c", "d"), ("d", "e"), ("e", "f")) {
     arrow(p + ".south", q + ".north")
   }
-  content((5.2, -1.9), text(size: 7.5pt, fill: ink)[`_control_lock`:\ отпрыжка, отбрасывание,\ клинч — управление\ по X отключено], anchor: "west")
+  content((5.2, -1.9), text(size: 7.5pt, fill: ink)[`_control_lock`:\ отпрыжка, отбрасывание,\ клинч, выпад — управление\ по X отключено], anchor: "west")
 }), caption: [`Fighter._physics_process` — один и тот же для игрока, тени и врагов.])
 
 `unscaled_time` (тень): `delta` делится на `Engine.time_scale`, скорость перед `move_and_slide` умножается на `k = 1/time_scale` — тело живёт в реальном времени, пока мир замедлен.
@@ -429,6 +429,32 @@ Autoload-оверлей: `CanvasLayer` (слой 100) → один `ColorRect` �
 - Новая цель (платформа, свет, спавнер) = любая нода с `set_active(on: bool)`.
 - `Door` — `AnimatableBody2D` на слое 1: открывается сдвигом на `open_offset`, `inverted` — наоборот.
 
+= Цели и завершение уровня
+
+#figure(canvas(length: 0.95cm, {
+  import draw: *
+  box((0, 1.2), "ok", [`ObjectiveKill`\ `died` целей], bg: c-leaf, w: 3.2, h: 1)
+  box((0, -0.2), "os", [`ObjectiveSignal`\ сигнал N раз], bg: c-leaf, w: 3.2, h: 1)
+  box((0, -1.6), "ox", [`extends Objective`\ своя цель], bg: c-leaf, w: 3.2, h: 1)
+  box((5.2, -0.2), "lg", [`LevelGoals`\ `PARALLEL` / `SEQUENTIAL`], w: 3.6, h: 1.1)
+  box((10.2, 0.8), "ex", [*EXIT*: `LevelExit`\ игрок коснулся], bg: c-state, w: 3.4, h: 1)
+  box((10.2, -1.2), "au", [*AUTO*\ `auto_finish_delay`], bg: c-state, w: 3.4, h: 1)
+  box((14.6, -0.2), "tr", [`ScreenFX`\ `.transition_to`], bg: c-service, w: 2.6, h: 1)
+  arrow("ok.east", (2.3, 1.2), (2.3, -0.2), "lg.west")
+  arrow("os.east", "lg.west", label: [`completed`], lpos: 60%, loff: (0.1, 0.25))
+  arrow("ox.east", (2.3, -1.6), (2.3, -0.2))
+  arrow("lg.east", (7.6, -0.2), (7.6, 0.8), "ex.west")
+  arrow((7.6, -0.2), (7.6, -1.2), "au.west")
+  content((7.75, 0.2), anchor: "west", text(size: 7.5pt, fill: ink)[все\ обязательные])
+  arrow("ex.east", (12.6, 0.8), (12.6, -0.2), "tr.west")
+  arrow("au.east", (12.6, -1.2), (12.6, -0.2))
+}), caption: [Цели — дочерние ноды `LevelGoals`. После всех обязательных — выход или автозавершение, затем затемнение и `next_level`.])
+
+- `Objective`: `description`, `optional`, `progress / required`, `activate()` → `_on_activated()` → `set_progress` / `complete()`.
+- `ObjectiveKill` — `targets` и/или `group`; считает по сигналу `died`. `ObjectiveSignal` — `source`, `signal_name`, `count`, фильтр первого аргумента (`TRUE_ONLY` для рычага).
+- `finish()`: инпут никому (`possess(null)`), `Juice.reset()`, `ScreenFX.transition_to(next_level)` (пусто — перезапуск).
+- `LevelExit` заперт (серый), пока цели не выполнены; тень выход не активирует.
+
 = Инпут
 
 #table(columns: (auto, auto, 1fr),
@@ -436,7 +462,8 @@ Autoload-оверлей: `CanvasLayer` (слой 100) → один `ColorRect` �
   [`forward` / `backward`], [D / A], [бег],
   [`jump`], [Space], [прыжок, отпрыжка от стены],
   [`down` + `jump`], [S + Space], [спрыгнуть с платформы],
-  [`attack`], [ЛКМ], [действие управляемого тела: катана / захват],
+  [`attack`], [ЛКМ], [действие управляемого тела: катана с выпадом / захват],
   [`shadow`], [ПКМ], [выпустить / отменить тень],
   [`use`], [E], [зарезервировано (кнопки — в обсуждении)],
+  [`restart`], [R], [мгновенный рестарт уровня],
 )

@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/level/level_exit.gd" id="1_exit"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_exit"]
+size = Vector2(24, 64)
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_exit"]
+
+[node name="LevelExit" type="Area2D"]
+script = ExtResource("1_exit")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_exit")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(24, 64)
+texture = SubResource("PlaceholderTexture2D_exit")

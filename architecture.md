@@ -40,7 +40,10 @@
 | `scripts/level/switch.gd` | `Switch` — база переключателей (`Area2D`, слой 5): `targets` → `set_active(on)`, режимы TOGGLE/ONCE/TIMED |
 | `scripts/level/lever.gd` | `Lever` (`extends Switch`) — рычаг, переключается ударом катаны |
 | `scripts/level/door.gd` | `Door` (`AnimatableBody2D`) — пример цели: открывается сдвигом |
-| `level/` | Сцены объектов уровня: `lever.tscn`, `door.tscn` |
+| `scripts/level/level_goals.gd` | `LevelGoals` — цели уровня и его завершение (`LevelGoals.current`) |
+| `scripts/level/level_exit.gd` | `LevelExit` (`Area2D`) — выход, открывается после обязательных целей |
+| `scripts/level/objectives/` | `Objective` (база), `ObjectiveKill`, `ObjectiveSignal` |
+| `level/` | Сцены объектов уровня: `lever.tscn`, `door.tscn`, `level_exit.tscn` |
 | `docs/architecture.typ` | Документ Typst с диаграммами архитектуры |
 | `scripts/create_tiles.gd` | EditorScript: генерирует `art/placeholder_tiles.png` (4 цветных тайла 32×32) |
 | `art/` | Графика (пока плейсхолдеры) |
@@ -71,6 +74,7 @@
 | `attack` | ЛКМ (действие текущего тела: катана / захват) |
 | `shadow` | ПКМ (выпустить тень / отменить) |
 | `use` | E (зарезервировано, пока не используется — кнопки в обсуждении) |
+| `restart` | R (мгновенный рестарт уровня) |
 
 ## Бойцы: `Fighter` (`scripts/fighter.gd`)
 
@@ -85,6 +89,8 @@
 `unscaled_time` — боец живёт в реальном времени: `delta` делится на `Engine.time_scale`, скорость перед `move_and_slide()` умножается на `1/time_scale` и после делится обратно. Используется тенью, чтобы она не замедлялась вместе с миром.
 
 `take_damage(amount, from) -> bool` — `true`, если урон прошёл; `false` — заблокирован (броня) или цель мертва.
+
+**Выпад** (`lunge(dir) -> bool`, группа `Lunge` в инспекторе): импульс `velocity = (d.x, d.y · lunge_vertical_mult) · lunge_speed` по нормализованному `dir` + `_control_lock = lunge_time`. На земле — каждый раз, в воздухе — один раз до приземления (`_air_lunge_used` сбрасывается, когда `is_on_floor()`). `lunge_speed = 0` (по умолчанию) — выпада нет; включён у игрока (320, `lunge_vertical_mult` 0.8, `lunge_time` 0.12 с). Враги/тень могут включить тем же параметром.
 `_physics_process` (в базе), порядок:
 
 1. `_update_intent(delta)` — наследник выставляет намерения.
@@ -147,9 +153,10 @@
 ## Игрок (`scripts/character.gd`)
 
 - `extends PlayerPawn`; в `_ready` добавляется в группу `player` (по ней его находят враги) и забирает управление себе (`possess(self)` — важно при перезагрузке уровня, т.к. static переживает её).
-- `_primary_action()` → `melee_attack.attack()` (к мыши).
+- `_primary_action()` → если `melee_attack.can_attack()`: `attack(к мыши)` + `lunge(к мыши)` — выпад как в Katana Zero, добавляет мобильности (в воздухе — один раз до приземления).
+- **Смерть с одного удара**: `max_health = 1` в `character.tscn` (любой урон ≥ 1 убивает).
 - Сок: `melee_attack.hit_landed(hit)` → по врагу (цель в группе `enemy` — `Enemy` и `Turret` добавляют себя в `_ready`): `hit.blocked` → отдача игроку (`knockback × 0.6`) + `Juice.shake(0.2)`; `hit.killed` → `Juice.kill()`; иначе `Juice.hit()`. Сигнал `clinched` → `Juice.clinch()`, сигнал `damaged` → `Juice.hurt()`.
-- `_die()` → перезапуск текущей сцены (временно).
+- `_die()` → `restart_level(restart_delay)`: через `restart_delay` (0.15 реальных сек — увидеть, что убило) `Juice.reset()`, `ScreenFX.clear()` и `reload_current_scene`. `restart` (R) — `restart_level(0)` в любой момент. Защита от двойного рестарта — `_restarting`.
 
 ## Тень: `ShadowAbility` + `Shadow` + `GrabAttack`
 
@@ -352,6 +359,37 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 
 Как добавить: новый переключатель (кнопка, нажимная плита) = `extends Switch`, вызывает `activate()` по своему событию. Новая цель (платформа, свет, спавнер, турель) = любая нода с `set_active(on)`.
 
+## Цели и завершение уровня (`LevelGoals`, `Objective`, `LevelExit`)
+
+Гибкая система «что сделать на уровне и как он кончается»; всё собирается в редакторе.
+
+**`LevelGoals`** (`extends Node`, одна на уровень, `LevelGoals.current` — static, ставится в `_enter_tree`). Дочерние ноды типа `Objective` — цели уровня; их количество и состав = задачи уровня.
+
+- `order`: `PARALLEL` — все обязательные цели активны сразу; `SEQUENTIAL` — по одной сверху вниз (необязательные активны сразу).
+- Выполнены все обязательные (`optional = false`) → `all_completed`, затем `finish_mode`:
+  - `EXIT` — открываются `LevelExit`, уровень кончается, когда игрок коснётся выхода;
+  - `AUTO` — через `auto_finish_delay` (1 с) уровень кончается сам.
+- Уровень без обязательных целей выполнен сразу (выход открыт).
+- `finish()`: `level_finished`, `PlayerPawn.possess(null)` (инпут никому), `Juice.reset()`, `ScreenFX.transition_to(next_level)` — затемнение → смена сцены (`next_level`, `@export_file`; пусто — перезапуск текущей) → проявление.
+- Сигналы для HUD/скриптов: `objective_completed(obj)`, `all_completed`, `level_finished`; `get_active()` — активные цели. Пока пишет в лог через `print`.
+
+**`Objective`** (база, `extends Node`): `description` (текст для HUD), `optional`, `is_active`, `is_completed`, `progress / required`, `get_text()` → «Убей охранника (1/2)». Цикл: `activate()` → `_on_activated()` (наследник подписывается на мир) → `set_progress()` / `complete()` → сигнал `completed`. Новая цель = `extends Objective` + `_on_activated()`.
+
+Готовые цели:
+
+| Цель | Параметры | Как считает |
+|---|---|---|
+| `ObjectiveKill` | `targets: Array[NodePath]`, `group` (например, `&"enemy"` — «зачистка») | по сигналу `died` целей (есть у `Fighter` и `Turret`); уже мёртвые к активации засчитываются сразу |
+| `ObjectiveSignal` | `source`, `signal_name`, `count`, `first_arg` (`ANY` / `TRUE_ONLY` / `FALSE_ONLY`) | нода выпустила сигнал `count` раз; фильтр по первому аргументу (для `Switch.switched(on)`). Покрывает «дёрнуть рычаг», «сломать», «подобрать», «зайти в зону». События до активации не считаются |
+
+Правило для новых убиваемых/ломаемых объектов: эмитить `died` (или свой сигнал для `ObjectiveSignal`).
+
+**`LevelExit`** (`level/level_exit.tscn`, `Area2D`, маска — слой 4, тень не активирует): игрок касается и цели выполнены → `LevelGoals.finish()`. Закрыт — `locked_color` (серый), открыт — `open_color` (зелёный). Если игрок уже стоит в выходе, когда выполнилась последняя цель, — уровень кончается сразу. Без `LevelGoals` выход всегда открыт и перезапускает уровень.
+
+**`ScreenFX.transition_to(path)`** — переход через чёрный экран (пресет `black`), живёт в autoload, поэтому переживает смену сцены. `ScreenFX.clear()` (в т.ч. при рестарте по R/смерти) отменяет незавершённый переход.
+
+Пример в `world.tscn`: `LevelGoals` (PARALLEL, EXIT) с `KillArmored` (убить `EnemyArmored`) и `PullLever` (`Lever.switched` с `TRUE_ONLY`); `LevelExit` на (-385, -29) слева от старта.
+
 ## Атака (`melee_attack.gd`)
 
 Дочерняя нода бойца (путь `$MeleeAttack` обязателен для `Fighter`). Хитбокс `Area2D` создаётся один раз в `_ready`. `attack(direction := Vector2.ZERO)` поворачивает его по `direction` (локальные координаты; `ZERO` → к мыши), включает на `active_time`, затем кулдаун. `can_attack()` — готов ли удар, `is_active()` — идёт ли удар сейчас, `cancel()` — погасить удар (клинч). Попадание: если у цели есть `is_attacking()` и он `true`, а у владельца есть `clinch()` → клинч (сигнал `clinched`), иначе цель получает `take_damage(damage, global_position)` и эмитится `hit_landed(hit: HitInfo)` (в т.ч. при блоке — см. `hit.blocked`). Компонент не зависит от `Fighter` напрямую — только duck-typing. Одна цель бьётся максимум раз за взмах; своего владельца (`get_parent()`) хитбокс игнорирует.
@@ -367,12 +405,13 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 - Juice: звук.
 - ScreenFX: состояние оглушения игрока (механики пока нет), «мало HP»; вынести `intensity` в настройки.
 - Пропы на слое 5 (ящики, лампы) с собственными `HitReaction`.
+- Цели: HUD списка целей (сигналы `LevelGoals` готовы), зона-триггер «дойти до точки», таймер «успеть за N сек», неуязвимость игрока во время затемнения.
 - Переключатели: кнопки (действие `use` на E уже заведено), нажимные плиты; другие цели (движущиеся платформы, свет, спавнеры); `set_active` у турели.
 - Пули: другие аффекторы (магнит, поле замедления), `MultiMeshInstance2D` при большом количестве.
 - Нет неуязвимости после урона.
 - Турель: ограничение угла поворота ствола (сейчас 360°), разрушение с эффектом посильнее.
 - Тень: HUD кулдауна (есть сигнал `ShadowAbility.state_changed`), ограничение дальности от тела, визуальная связь тело↔тень.
-- Смерть игрока — просто перезагрузка сцены, без экрана/анимации.
+- Смерть игрока — рестарт без анимации/экрана смерти (в духе Katana Zero можно добавить «перемотку»).
 
 ## Журнал изменений
 
@@ -389,3 +428,5 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 - **2026-09-24** — Объекты уровня: `Switch` (база переключателей, `targets` → `set_active`, режимы TOGGLE/ONCE/TIMED), `Lever` (удар катаной), `Door` (пример цели); рычаг и дверь в `world.tscn`. `HitReaction.dispatch` вызывает `on_hit(hit)` у самой цели. Документ с диаграммами `docs/architecture.typ` (Typst + cetz). Расширен `.gitignore` (мусор ОС/редакторов, сборки, собранный PDF).
 - **2026-09-24** — `MeleeAttack`: отладочные цвета хитбокса (активен / выключен / погашен клинчем) и контур зоны отбивания пуль при Visible Collision Shapes.
 - **2026-09-24** — Autoload `ScreenFX` (`scripts/fx/`, `shaders/screen_fx.gdshader`): полноэкранные эффекты-телеграфы — состояния (`enter/exit`) и импульсы (`pulse`), пресеты `ScreenFXPreset`. Пресеты: `shadow` (управление тенью), `clinch`, `kill`, `hurt`. Новое событие `Juice.hurt()` (урон по игроку: тряска + красная виньетка).
+- **2026-09-24** — Выпад при ударе: `Fighter.lunge(dir)` (группа `Lunge`, в воздухе один раз до приземления), у игрока `lunge_speed = 320`. Смерть игрока с одного удара (`max_health = 1`) и мгновенный рестарт (`restart_level`, `restart_delay` 0.15 с, клавиша R — действие `restart`). `.gitignore`: `.claude/worktrees/`, `.claude/settings.local.json`.
+- **2026-09-24** — Цели и завершение уровня: `LevelGoals` (PARALLEL/SEQUENTIAL, EXIT/AUTO, `next_level`), база `Objective` + `ObjectiveKill`, `ObjectiveSignal`, выход `LevelExit`. `ScreenFX.transition_to(path)` и пресет `black` — переход через чёрный экран. Пример на уровне: убить бронированного + дёрнуть рычаг → выход слева от старта.

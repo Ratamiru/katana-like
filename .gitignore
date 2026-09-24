@@ -20,6 +20,10 @@ export_credentials.cfg
 # Собранная документация (исходник docs/*.typ в репо, PDF собирается: typst compile docs/architecture.typ)
 docs/*.pdf
 
+# Claude Code: worktree других сессий и локальные настройки
+.claude/worktrees/
+.claude/settings.local.json
+
 # ОС и редакторы
 .DS_Store
 Thumbs.db

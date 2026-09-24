@@ -21,7 +21,9 @@ height = 26.0
 collision_layer = 8
 collision_mask = 3
 script = ExtResource("1_glpr6")
+max_health = 1
 clinch_effect = ExtResource("h_sparks")
+lunge_speed = 320.0
 
 [node name="MeleeAttack" type="Node2D" parent="." unique_id=911463422]
 script = ExtResource("2_pjt0s")

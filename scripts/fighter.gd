@@ -28,6 +28,14 @@ const FLOOR_PROBE := 20.0 # длина луча вниз от центра дл�
 ## Жить в реальном времени: движение не замедляется Engine.time_scale (тень во время замедления).
 @export var unscaled_time := false
 
+@export_group("Lunge")
+## Выпад при ударе (как в Katana Zero): импульс в сторону удара + короткая блокировка управления.
+## На земле — всегда, в воздухе — один раз до приземления. 0 — выпада нет.
+@export var lunge_speed := 0.0
+@export var lunge_vertical_mult := 0.8 # доля вертикальной составляющей: удар вверх подбрасывает слабее, чем толкает вбок
+@export var lunge_time := 0.12 # сек, пока move_dir не гасит выпад
+@export_group("")
+
 # Намерения на текущий кадр — выставляются в _update_intent().
 var move_dir := 0.0
 var jump_requested := false
@@ -37,7 +45,8 @@ var facing := 1.0 # куда смотрит боец: 1 — вправо, -1 —
 
 var health: int
 var is_dead := false
-var _control_lock := 0.0 # пока > 0, move_dir игнорируется (отпрыжка, отбрасывание)
+var _control_lock := 0.0 # пока > 0, move_dir игнорируется (отпрыжка, отбрасывание, выпад)
+var _air_lunge_used := false # выпад в воздухе уже был — следующий только после приземления
 var _flash_tween: Tween
 @onready var _half_height: float = ($Collision as CollisionShape2D).shape.get_rect().size.y * 0.5
 
@@ -69,6 +78,8 @@ func _physics_process(delta: float) -> void:
 
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+	else:
+		_air_lunge_used = false
 	# Скольжение по стене: персонаж прижат к стене в воздухе.
 	var on_wall := is_on_wall_only()
 	if on_wall and velocity.y > wall_slide_max_speed:
@@ -136,6 +147,21 @@ func apply_knockback(from: Vector2, force: Vector2, lock_time := knockback_time)
 		dir = 1.0
 	velocity = Vector2(dir * force.x, force.y)
 	_control_lock = maxf(_control_lock, lock_time)
+
+
+## Выпад в направлении dir (обычно — направление удара). true — если выпад был.
+## В воздухе срабатывает один раз до приземления (иначе удары в воздухе = полёт).
+func lunge(dir: Vector2) -> bool:
+	if lunge_speed <= 0.0 or dir == Vector2.ZERO:
+		return false
+	if not is_on_floor():
+		if _air_lunge_used:
+			return false
+		_air_lunge_used = true
+	var d := dir.normalized()
+	velocity = Vector2(d.x, d.y * lunge_vertical_mult) * lunge_speed
+	_control_lock = maxf(_control_lock, lunge_time)
+	return true
 
 
 ## Идёт ли сейчас удар, который может столкнуться с чужим (клинч).

@@ -10,6 +10,10 @@
 [ext_resource type="PackedScene" path="res://turret.tscn" id="8_turret"]
 [ext_resource type="PackedScene" path="res://level/lever.tscn" id="9_lever"]
 [ext_resource type="PackedScene" path="res://level/door.tscn" id="10_door"]
+[ext_resource type="PackedScene" path="res://level/level_exit.tscn" id="11_exit"]
+[ext_resource type="Script" path="res://scripts/level/level_goals.gd" id="12_goals"]
+[ext_resource type="Script" path="res://scripts/level/objectives/objective_kill.gd" id="13_obj_kill"]
+[ext_resource type="Script" path="res://scripts/level/objectives/objective_signal.gd" id="14_obj_signal"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f3sb7"]
 texture = ExtResource("1_f3sb7")
@@ -76,6 +80,24 @@ position = Vector2(-150, -29)
 [node name="Lever" parent="." unique_id=531213442 instance=ExtResource("9_lever")]
 position = Vector2(-330, -8)
 targets = Array[NodePath]([NodePath("../Door")])
+
+[node name="LevelExit" parent="." instance=ExtResource("11_exit")]
+position = Vector2(-385, -29)
+
+[node name="LevelGoals" type="Node" parent="."]
+script = ExtResource("12_goals")
+
+[node name="KillArmored" type="Node" parent="LevelGoals"]
+script = ExtResource("13_obj_kill")
+description = "Убить бронированного"
+targets = Array[NodePath]([NodePath("../../EnemyArmored")])
+
+[node name="PullLever" type="Node" parent="LevelGoals"]
+script = ExtResource("14_obj_signal")
+description = "Открыть дверь рычагом"
+source = NodePath("../../Lever")
+signal_name = &"switched"
+first_arg = 1
 
 [node name="BulletWorld" type="Node2D" parent="." unique_id=368480397]
 script = ExtResource("5_bullets")

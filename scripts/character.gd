@@ -1,7 +1,14 @@
 extends PlayerPawn
 
-## Основное тело игрока: катана в сторону мыши. Управление — см. PlayerPawn,
+## Основное тело игрока: катана в сторону мыши с выпадом. Управление — см. PlayerPawn,
 ## тень — дочерний компонент ShadowAbility.
+## Смерть с одного удара (max_health = 1 в сцене) и мгновенный рестарт уровня;
+## `restart` (R) — рестарт в любой момент.
+
+## Реальных сек между смертью и перезапуском — успеть увидеть, что убило. 0 — сразу.
+@export var restart_delay := 0.15
+
+var _restarting := false
 
 
 func _ready() -> void:
@@ -39,9 +46,32 @@ func mouse_pos() -> void:
 
 
 func _primary_action() -> void:
-	melee_attack.attack()
+	if not melee_attack.can_attack():
+		return
+	var dir := get_local_mouse_position()
+	melee_attack.attack(dir)
+	lunge(dir)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	super(event)
+	if event.is_action_pressed("restart"):
+		restart_level(0.0)
 
 
 func _die() -> void:
-	# Пока просто перезапуск уровня.
+	# Тело не удаляем — оно «лежит», пока идёт короткая пауза до рестарта.
+	restart_level(restart_delay)
+
+
+## Перезапустить уровень через delay реальных секунд (не зависит от замедления).
+func restart_level(delay: float) -> void:
+	if _restarting:
+		return
+	_restarting = true
+	if delay > 0.0:
+		await get_tree().create_timer(delay, true, false, true).timeout
+	# Чистый старт: без хвостов замедления и экранных эффектов прошлой попытки.
+	Juice.reset()
+	ScreenFX.clear()
 	get_tree().reload_current_scene.call_deferred()
