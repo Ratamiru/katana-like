@@ -45,6 +45,9 @@
 | `scripts/level/objectives/` | `Objective` (база), `ObjectiveKill`, `ObjectiveSignal` |
 | `level/` | Сцены объектов уровня: `lever.tscn`, `door.tscn`, `level_exit.tscn` |
 | `docs/architecture.typ` | Документ Typst с диаграммами архитектуры |
+| `addons/dialogue/` | Аддон диалогов (переносимый): парсер `.dlg`, раннер, autoload `Dialogue`, окно, `DialogueTrigger`. Справка по синтаксису — `addons/dialogue/README.md` |
+| `dialogues/` | Тексты диалогов `.dlg` (`old_man.dlg` — демо) |
+| `level/npc.tscn` | NPC-плейсхолдер: `scripts/level/npc.gd` (`extends DialogueTrigger`, подойти, E) с подсказкой «E» |
 | `scripts/create_tiles.gd` | EditorScript: генерирует `art/placeholder_tiles.png` (4 цветных тайла 32×32) |
 | `art/` | Графика (пока плейсхолдеры) |
 
@@ -73,7 +76,7 @@
 | `down` | S |
 | `attack` | ЛКМ (действие текущего тела: катана / захват) |
 | `shadow` | ПКМ (выпустить тень / отменить) |
-| `use` | E (зарезервировано, пока не используется — кнопки в обсуждении) |
+| `use` | E — заговорить с NPC (`DialogueTrigger`), в диалоге — дальше (вместе с `ui_accept` и ЛКМ) |
 | `restart` | R (мгновенный рестарт уровня) |
 
 ## Бойцы: `Fighter` (`scripts/fighter.gd`)
@@ -390,6 +393,38 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 
 Пример в `world.tscn`: `LevelGoals` (PARALLEL, EXIT) с `KillArmored` (убить `EnemyArmored`) и `PullLever` (`Lever.switched` с `TRUE_ONLY`); `LevelExit` на (-385, -29) слева от старта.
 
+## Диалоги (`addons/dialogue/`)
+
+Самостоятельный аддон — не зависит от кода игры, переносится в другой проект копированием папки + включением плагина **Dialogue** (добавляет autoload `Dialogue`; в этом проекте autoload и плагин уже прописаны в `project.godot`). Полная справка по синтаксису и API — `addons/dialogue/README.md`.
+
+**Формат** — текстовые файлы `.dlg`, а не JSON: одна строка — одна реплика (`Имя: текст`), ветки — отступами. Узлы `~ имя`, переходы `=> имя` / `=> END`, выборы `- текст [if условие] [once]`, `if/elif/else`, переменные `set x += 1`, вызовы игры `do Juice.shake(0.3)` / `do node("Door").set_active(true)` / `do emit("event")`, подстановки `{выражение}`, теги `#mood=angry`.
+
+**Конвейер:**
+
+```
+.dlg ──DialogueFormatLoader──► DialogueParser ──► DialogueResource {code, nodes, errors}
+                                                        │
+Dialogue.start(res, node, locals) ──► DialogueRunner ◄──┘   (исполняет «байткод» по _ip)
+          │                              │ next() → DialogueLine / choose(i)
+          └──► DialogueBalloon (UI) ─────┘
+```
+
+- `DialogueFormatLoader` (`@tool`, `class_name` → регистрируется движком сам) — `.dlg` грузится как обычный ресурс: `load`, `preload`, `@export var d: DialogueResource`, ext_resource в сценах. Файл компилируется при загрузке; ошибки (неизвестный узел, битое выражение, лишний отступ) — в Output с номером строки.
+- `DialogueParser` компилирует текст в **плоский список инструкций** (`line`, `choice`, `if`, `jump`, `goto`, `set`, `do`, `end`) с переходами по индексам; состояние диалога — один указатель `_ip`. Синтаксис выражений проверяется при загрузке (`Expression.parse`).
+- `DialogueRunner` — исполнение без UI: `next()` выполняет инструкции до реплики/выбора, `choose(i)`. Выбор, стоящий сразу за репликой (в т.ч. через `jump`/`=>`), прикрепляется к ней. Защита от циклов без реплик (10 000 шагов).
+- Autoload `Dialogue` (`dialogue_manager.gd`, `PROCESS_MODE_ALWAYS`): `start()` ставит дерево на паузу (`pause_game`), создаёт окно, по окончании ждёт кадр (нажатие, закрывшее диалог, не становится прыжком) и снимает паузу. `vars` — все переменные диалогов плюс служебные `__once` / `__visits` — сохранять в сейв целиком. Выражения — Godot `Expression`, имена ищутся: `locals` → `vars` → autoload'ы (ноды под `/root`) → синглтоны движка → глобальные классы → `0`. Функции без точки — методы менеджера: `emit`, `node`, `visited`, `get_var`. Сигналы `started`, `ended`, `line_shown`, `event(name, args)`.
+- `DialogueBalloon` (`CanvasLayer`, собирается кодом) — панель внизу, имя, текст с печатной машинкой (реальное время, BBCode), варианты кнопками. Дальше / допечатать — `ui_accept`, `use`, ЛКМ. Замена: `Dialogue.balloon_scene` (сцена с методом `run(runner)`).
+- `DialogueTrigger` (`Area2D`) — `ON_USE` (игрок из `body_group` в зоне + `use_action`), `ON_ENTER`, `MANUAL`; `once`; подсказка `prompt`; `set_active(true)` — может быть целью `Switch`. В диалог передаётся локальное имя `trigger`.
+
+**В этом проекте:** `level/npc.tscn` — NPC, корень — `scripts/level/npc.gd` (`extends DialogueTrigger`, `collision_mask = 8` — игрок), подсказка «E». `npc.gd` добавляет правило игры, которого аддон не знает: `can_start()` только когда `PlayerPawn.possessed` — основное тело (управляя тенью, заговорить нельзя). В `world.tscn` — `OldMan` на (-290, -8) между рычагом и стартом, диалог `dialogues/old_man.dlg`: вопросы с `[once]`, после «Кто ты?» открывается вариант, в котором старик открывает дверь через рычаг (`do node("Lever").set_on(true)`), при повторном разговоре — узел `again` по `visited("start")`.
+
+**Правила для диалогов проекта:**
+
+- `Dialogue.vars` — autoload, **переживают рестарт уровня** (смерть, R). Туда — только знание/сюжет (`knows_guard`, счётчики разговоров, `__once`, `__visits`). Состояние уровня (открыта ли дверь, жив ли враг) читать из мира: `node("Lever").is_on`, иначе после рестарта диалог будет врать.
+- Менять мир через те же объекты, что и игрок (`Lever.set_on(true)`, а не `Door.set_active`) — чтобы переключатели не расходились с целями и срабатывали `ObjectiveSignal` на их сигналах.
+- Правила игры (тень, бой) — в наследниках классов аддона в `scripts/`, сам `addons/dialogue/` остаётся переносимым.
+- Во время диалога дерево на паузе — враги, пули, таймеры тени стоят; `Juice`/`ScreenFX`/окно работают (`PROCESS_MODE_ALWAYS`).
+
 ## Атака (`melee_attack.gd`)
 
 Дочерняя нода бойца (путь `$MeleeAttack` обязателен для `Fighter`). Хитбокс `Area2D` создаётся один раз в `_ready`. `attack(direction := Vector2.ZERO)` поворачивает его по `direction` (локальные координаты; `ZERO` → к мыши), включает на `active_time`, затем кулдаун. `can_attack()` — готов ли удар, `is_active()` — идёт ли удар сейчас, `cancel()` — погасить удар (клинч). Попадание: если у цели есть `is_attacking()` и он `true`, а у владельца есть `clinch()` → клинч (сигнал `clinched`), иначе цель получает `take_damage(damage, global_position)` и эмитится `hit_landed(hit: HitInfo)` (в т.ч. при блоке — см. `hit.blocked`). Компонент не зависит от `Fighter` напрямую — только duck-typing. Одна цель бьётся максимум раз за взмах; своего владельца (`get_parent()`) хитбокс игнорирует.
@@ -406,7 +441,8 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 - ScreenFX: состояние оглушения игрока (механики пока нет), «мало HP»; вынести `intensity` в настройки.
 - Пропы на слое 5 (ящики, лампы) с собственными `HitReaction`.
 - Цели: HUD списка целей (сигналы `LevelGoals` готовы), зона-триггер «дойти до точки», таймер «успеть за N сек», неуязвимость игрока во время затемнения.
-- Переключатели: кнопки (действие `use` на E уже заведено), нажимные плиты; другие цели (движущиеся платформы, свет, спавнеры); `set_active` у турели.
+- Диалоги: портреты/эмоции по тегам (`line.tags`), звук печати, `wait` и ожидание async-вызовов в `do`, сохранение `Dialogue.vars` в сейв, подсветка синтаксиса `.dlg` в редакторе.
+- Переключатели: кнопки (`use` на E теперь занят NPC — кнопкам нужно не пересекаться с `DialogueTrigger`), нажимные плиты; другие цели (движущиеся платформы, свет, спавнеры); `set_active` у турели.
 - Пули: другие аффекторы (магнит, поле замедления), `MultiMeshInstance2D` при большом количестве.
 - Нет неуязвимости после урона.
 - Турель: ограничение угла поворота ствола (сейчас 360°), разрушение с эффектом посильнее.
@@ -430,3 +466,6 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 - **2026-09-24** — Autoload `ScreenFX` (`scripts/fx/`, `shaders/screen_fx.gdshader`): полноэкранные эффекты-телеграфы — состояния (`enter/exit`) и импульсы (`pulse`), пресеты `ScreenFXPreset`. Пресеты: `shadow` (управление тенью), `clinch`, `kill`, `hurt`. Новое событие `Juice.hurt()` (урон по игроку: тряска + красная виньетка).
 - **2026-09-24** — Выпад при ударе: `Fighter.lunge(dir)` (группа `Lunge`, в воздухе один раз до приземления), у игрока `lunge_speed = 320`. Смерть игрока с одного удара (`max_health = 1`) и мгновенный рестарт (`restart_level`, `restart_delay` 0.15 с, клавиша R — действие `restart`). `.gitignore`: `.claude/worktrees/`, `.claude/settings.local.json`.
 - **2026-09-24** — Цели и завершение уровня: `LevelGoals` (PARALLEL/SEQUENTIAL, EXIT/AUTO, `next_level`), база `Objective` + `ObjectiveKill`, `ObjectiveSignal`, выход `LevelExit`. `ScreenFX.transition_to(path)` и пресет `black` — переход через чёрный экран. Пример на уровне: убить бронированного + дёрнуть рычаг → выход слева от старта.
+- **2026-09-24** — Система диалогов — переносимый аддон `addons/dialogue/`: текстовый формат `.dlg` (узлы, выборы с `[if]`/`[once]`, `if/elif/else`, `set`, `do`, `{подстановки}`, теги), загрузчик ресурса, компиляция в плоский «байткод», `DialogueRunner`, autoload `Dialogue` (переменные, выражения, пауза), стандартное окно `DialogueBalloon`, `DialogueTrigger`. Плагин включён в `project.godot`. Демо: NPC `level/npc.tscn` + `dialogues/old_man.dlg` в `world.tscn` (может открыть дверь). Действие `use` (E) теперь — разговор с NPC.
+- **2026-09-24** — Ревью диалогов под проект: `scripts/level/npc.gd` (нельзя заговорить, управляя тенью), `old_man.dlg` читает состояние двери из мира (`node("Lever").is_on`) и открывает её через рычаг — после рестарта диалог не «врёт», рычаг и дверь не расходятся. Раздел «Правила для диалогов проекта».
+- **2026-09-24** — Слияние ветки диалогов в master. Связка систем: если старик открывает дверь через рычаг (`Lever.set_on(true)`), засчитывается цель `PullLever` (`ObjectiveSignal` на `Lever.switched`). Ресурсы NPC в `world.tscn` перенумерованы (`15_npc`, `16_old_man`), чтобы не пересекаться с целями уровня.

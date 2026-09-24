@@ -14,6 +14,8 @@
 [ext_resource type="Script" path="res://scripts/level/level_goals.gd" id="12_goals"]
 [ext_resource type="Script" path="res://scripts/level/objectives/objective_kill.gd" id="13_obj_kill"]
 [ext_resource type="Script" path="res://scripts/level/objectives/objective_signal.gd" id="14_obj_signal"]
+[ext_resource type="PackedScene" path="res://level/npc.tscn" id="15_npc"]
+[ext_resource type="Resource" path="res://dialogues/old_man.dlg" id="16_old_man"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f3sb7"]
 texture = ExtResource("1_f3sb7")
@@ -98,6 +100,10 @@ description = "Открыть дверь рычагом"
 source = NodePath("../../Lever")
 signal_name = &"switched"
 first_arg = 1
+
+[node name="OldMan" parent="." instance=ExtResource("15_npc")]
+position = Vector2(-290, -8)
+dialogue = ExtResource("16_old_man")
 
 [node name="BulletWorld" type="Node2D" parent="." unique_id=368480397]
 script = ExtResource("5_bullets")
