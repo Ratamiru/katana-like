@@ -26,6 +26,7 @@
 | `scripts/shadow.gd` | `Shadow` (`extends PlayerPawn`): тело-тень, на `attack` — захват |
 | `scripts/shadow_ability.gd` | `ShadowAbility` — компонент игрока: цикл тени (спавн, замедление, передача управления, кулдаун) |
 | `scripts/grab_attack.gd` | `GrabAttack` — компонент захвата (shape query, `target.grab(hold_time)`) |
+| `scripts/interactor.gd` | `Interactor` — компонент «взаимодействовать с объектом рядом» (у тени): ищет ноды с `interact(actor)` |
 | `scripts/turret.gd` | `Turret` — стационарный враг, очереди пуль через `BulletWorld`, заклинивает от захвата тенью |
 | `scripts/enemy_armored.gd` | Бронированный враг (`extends Enemy`): блок спереди, уязвим сзади |
 | `scripts/enemy.gd` | `Enemy` (`extends Fighter`): примитивный AI (IDLE → CHASE → ATTACK, STUNNED после клинча), по умолчанию ближний бой |
@@ -200,6 +201,10 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 
 **`GrabAttack`** (`scripts/grab_attack.gd`) — на `attack(direction)` делает shape query кругом `radius` (22) со смещением `reach` (16) к мыши по маске `grab_mask` (враги), берёт ближайшую цель с методом `grab` и вызывает `grab(hold_time)`. Сигналы `grabbed(target)` / `missed`. `cooldown` (0.25 с) между попытками — по реальному времени.
 
+**`Interactor`** (`scripts/interactor.gd`) — на `try_interact(direction)` shape query кругом `radius` (24) со смещением `reach` (16) к мыши по `mask` (`Layers.PROPS`, areas и bodies), кандидаты с методом `interact(actor) -> bool` по расстоянию; первый, вернувший `true`, — сработал (сигнал `interacted`). `cooldown` 0.2 с (реальное время).
+
+**ЛКМ тенью**: `grab_attack.attack(к мыши)`; если схватить некого — `interactor.try_interact(к мыши)`. Управление после взаимодействия остаётся у тени (в отличие от захвата) — можно пройти сквозь дверь, дёрнуть рычаг за ней и вернуться ПКМ.
+
 ## Враг (`scripts/enemy.gd`, `enemy.tscn`)
 
 Машина состояний в `_update_intent`:
@@ -369,6 +374,7 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 - в `_ready` сам ставит себе слой 5 (`collision_layer = 16`), `monitorable = true`, `monitoring = false` — хитбокс удара его «видит», ходьбе и пулям (лучи без areas) он не мешает;
 - `targets: Array[NodePath]` — ноды, которыми управляет. Цель — **любая нода с `set_active(on: bool)`**. При переключении у всех целей вызывается `set_active(is_on)`, эмитится `switched(on)` (можно подключать в редакторе); начальное состояние (`start_on`) отправляется целям отложенно в `_ready`;
 - `mode`: `TOGGLE` (каждое срабатывание переключает), `ONCE` (только включить, один раз), `TIMED` (включить на `timed_duration` сек игрового времени);
+- **взаимодействие** — `interact(actor) -> bool` (тень через `Interactor`): при `interactable = true` → `activate()`; `interactable = false` — рычаг только для катаны;
 - удар приходит через `HitReaction.dispatch` → `on_hit(hit)`; `hit_kinds` фильтрует виды ударов (по умолчанию только `&"melee"`);
 - `activate()` — «сработать» (для будущих кнопок/триггеров), `set_on(on)` — выставить состояние напрямую, `_update_visual(animated)` — переопределяется для визуала.
 
@@ -505,6 +511,8 @@ Dialogue.start(res, node, locals) ──► DialogueRunner ◄──┘   (ис�
 ```
 
 - `DialogueFormatLoader` (`@tool`, `class_name` → регистрируется движком сам) — `.dlg` грузится как обычный ресурс: `load`, `preload`, `@export var d: DialogueResource`, ext_resource в сценах. Файл компилируется при загрузке; ошибки (неизвестный узел, битое выражение, лишний отступ) — в Output с номером строки.
+- `DialogueFormatSaver` (`@tool`, `class_name`) — обратное: сохраняет `DialogueResource` в `.dlg` (пишет `source`). Нужен редактору: Duplicate в FileSystem делает load → save, без сохранителя — «File unrecognized». `DialogueResource.source` (`@export_multiline`) хранит исходник, правка в инспекторе перекомпилирует диалог.
+- Создание `.dlg` в редакторе: Editor Settings → Docks → FileSystem → TextFile Extensions += `dlg`, затем FileSystem → New → Text File (и правка во встроенном редакторе). Через New Resource → `DialogueResource` получается `.tres` с текстом в `source` — работает, но основной формат — `.dlg`.
 - `DialogueParser` компилирует текст в **плоский список инструкций** (`line`, `choice`, `if`, `jump`, `goto`, `set`, `do`, `end`) с переходами по индексам; состояние диалога — один указатель `_ip`. Синтаксис выражений проверяется при загрузке (`Expression.parse`).
 - `DialogueRunner` — исполнение без UI: `next()` выполняет инструкции до реплики/выбора, `choose(i)`. Выбор, стоящий сразу за репликой (в т.ч. через `jump`/`=>`), прикрепляется к ней. Защита от циклов без реплик (10 000 шагов).
 - Autoload `Dialogue` (`dialogue_manager.gd`, `PROCESS_MODE_ALWAYS`): `start()` ставит дерево на паузу (`pause_game`), создаёт окно, по окончании ждёт кадр (нажатие, закрывшее диалог, не становится прыжком) и снимает паузу. `vars` — все переменные диалогов плюс служебные `__once` / `__visits` — сохранять в сейв целиком. Выражения — Godot `Expression`, имена ищутся: `locals` → `vars` → autoload'ы (ноды под `/root`) → синглтоны движка → глобальные классы → `0`. Функции без точки — методы менеджера: `emit`, `node`, `visited`, `get_var`. Сигналы `started`, `ended`, `line_shown`, `event(name, args)`.
@@ -571,3 +579,5 @@ Dialogue.start(res, node, locals) ──► DialogueRunner ◄──┘   (ис�
 - **2026-09-25** — `LevelLighting` (заменил `Darkness`): освещение уровня, опция `fully_lit` для боевых уровней (враги видят кругом, нет темноты, `ViewLight` скрыт). Примеры на уровне: `LightArmored` + рычаг `LeverLights`, который её гасит, `LightUpper` на верхнем этаже.
 - **2026-09-25** — Главное меню (`ui/main_menu.tscn` — стартовая сцена): «Продолжить»/«Новая игра», «Загрузить» (список из `LevelCatalog`), «Выход». Autoload `Progress` (`user://progress.cfg`: открытые уровни, цель «Продолжить»), `LevelGoals.finish()` → `Progress.complete_level`. Esc (`menu`) — выход в меню.
 - **2026-09-25** — Слой 6 «Проходимо для тени» (`32`): двери переехали на него, тень (маска `3`) проходит сквозь них, пол и стены её держат. Маски игрока и врагов → `35`, пуль/взгляда/света → `Layers.SOLID` (`33`). Константы `scripts/layers.gd`, имена слоёв в Project Settings.
+- **2026-09-25** — Тень взаимодействует с объектами: компонент `Interactor` (ищет ноды с `interact(actor) -> bool` на слое пропов), `Switch.interact()` + флаг `interactable`. ЛКМ тенью: захват врага, иначе взаимодействие; управление остаётся у тени.
+- **2026-09-26** — Диалоги: `DialogueFormatSaver` — `.dlg` можно дублировать/пересохранять в редакторе (раньше «File unrecognized»); `DialogueResource.source` хранит исходник и редактируется в инспекторе. Подсказка про TextFile Extensions в README.

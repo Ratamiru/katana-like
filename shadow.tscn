@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/shadow.gd" id="1_shadow"]
 [ext_resource type="Script" path="res://scripts/grab_attack.gd" id="2_grab"]
+[ext_resource type="Script" path="res://scripts/interactor.gd" id="3_interactor"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_shadow"]
 radius = 8.0
@@ -29,6 +30,9 @@ unscaled_time = true
 
 [node name="GrabAttack" type="Node2D" parent="."]
 script = ExtResource("2_grab")
+
+[node name="Interactor" type="Node2D" parent="."]
+script = ExtResource("3_interactor")
 
 [node name="Collision" type="CollisionShape2D" parent="."]
 shape = SubResource("CapsuleShape2D_shadow")

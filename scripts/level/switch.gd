@@ -29,6 +29,8 @@ enum Mode { TOGGLE, ONCE, TIMED }
 @export var start_on := false
 @export var timed_duration := 3.0
 @export var hit_kinds: Array[StringName] = [&"melee"] # какие удары переключают (пусто — любые)
+## Можно переключить взаимодействием (тень, Interactor), а не только ударом.
+@export var interactable := true
 
 var is_on := false
 var _used := false
@@ -53,7 +55,15 @@ func on_hit(hit: HitInfo) -> void:
 	activate()
 
 
-## Сработать (удар, в будущем — нажатие кнопки, триггер и т.п.).
+## Взаимодействие (Interactor тени и т.п.). true — сработало.
+func interact(_actor: Node) -> bool:
+	if not interactable:
+		return false
+	activate()
+	return true
+
+
+## Сработать (удар, взаимодействие, в будущем — нажатие кнопки, триггер и т.п.).
 func activate() -> void:
 	match mode:
 		Mode.TOGGLE:

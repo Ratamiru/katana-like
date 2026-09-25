@@ -215,7 +215,8 @@
 
 - *CONTROLLING* — `Juice.hold_time_scale(&"shadow", 0.4)`, `possess(shadow)`; основное тело стоит и уязвимо.
 - *HOLDING* — `release_time_scale`, `possess(body)`; враг в состоянии `GRABBED` (турель — `JAMMED`).
-- Тень: `speed` 340, `unscaled_time`, `GrabAttack` вместо катаны; слой 0.
+- Тень: `speed` 340, `unscaled_time`, `GrabAttack` и `Interactor` вместо катаны; слой 0, двери проходит насквозь.
+- ЛКМ тенью: схватить врага рядом; если некого — `Interactor.try_interact()`: ближайший объект с `interact(actor)` (рычаг и т.п.). Управление остаётся у тени — можно дёрнуть рычаг за дверью и вернуться ПКМ.
 
 = AI врагов
 
@@ -445,12 +446,12 @@ Autoload-оверлей: `CanvasLayer` (слой 100) → один `ColorRect` �
 
 #figure(canvas(length: 0.95cm, {
   import draw: *
-  box((0, 0), "atk", [удар катаной], bg: c-comp, w: 2.4)
+  box((-0.8, 0), "atk", [удар катаной /\ `interact` тенью], bg: c-comp, w: 2.6, h: 1)
   box((4.8, 0), "sw", [`Lever` / `Switch`\ `TOGGLE` · `ONCE` · `TIMED`], w: 3.8, h: 1.1)
   box((11.8, 1.3), "d", [`Door.set_active(on)`], bg: c-leaf, w: 4.6)
   box((11.8, 0), "x", [любая нода с `set_active(on)`], bg: c-leaf, w: 4.6)
   box((11.8, -1.3), "sig", [сигнал `switched(on)`], bg: c-engine, w: 4.6)
-  arrow("atk.east", "sw.west", label: [`on_hit`])
+  arrow("atk.east", "sw.west", label: [`on_hit` / `interact`], loff: (0, 0.3))
   arrow("sw.east", (7.9, 0), (7.9, 1.3), "d.west")
   arrow("sw.east", "x.west")
   arrow((7.9, 0), (7.9, -1.3), "sig.west", dashed: true)
@@ -458,6 +459,7 @@ Autoload-оверлей: `CanvasLayer` (слой 100) → один `ColorRect` �
 }), caption: [Переключатель не знает, чем управляет: он вызывает `set_active` у всех `targets` и эмитит сигнал.])
 
 - `Switch` — `Area2D` на слое 5: хитбокс удара его видит, ходьбе и пулям он не мешает.
+- Переключается ударом (`on_hit`) или взаимодействием (`interact(actor)` — тень через `Interactor`; `interactable = false` — только катаной). Любой объект с `interact(actor) -> bool` — интерактивный.
 - Новый переключатель (кнопка, нажимная плита, терминал) = `extends Switch`, вызывает `activate()` по своему событию.
 - Новая цель (платформа, свет, спавнер) = любая нода с `set_active(on: bool)`.
 - `Door` — `AnimatableBody2D` на слое 6 (проходимо для тени): открывается сдвигом на `open_offset`, `inverted` — наоборот.
@@ -549,6 +551,7 @@ Autoload-оверлей: `CanvasLayer` (слой 100) → один `ColorRect` �
 - Выражения — Godot `Expression`, имена: `locals` → `vars` → autoload'ы → синглтоны → глобальные классы → `0`. Без точки — методы менеджера: `emit`, `node`, `visited`, `get_var`.
 - `Dialogue.start()` ставит дерево на паузу; окно и менеджер — `PROCESS_MODE_ALWAYS`. После конца — кадр задержки, чтобы закрывающее нажатие не стало прыжком.
 - `Dialogue.vars` хранит переменные и служебные `__once` / `__visits` — это и есть сохранение выборов.
+- `DialogueFormatSaver` — обратное загрузчику: пишет `DialogueResource.source` в `.dlg` (Duplicate / Save As в редакторе). Создавать `.dlg` в Godot: TextFile Extensions += `dlg` в Editor Settings.
 - В проекте: NPC `level/npc.tscn` (корень — `npc.gd`, `extends DialogueTrigger`: говорить можно только основным телом, не тенью), в `world.tscn` — старик с `dialogues/old_man.dlg`, может открыть дверь через рычаг: `do node("Lever").set_on(true)`.
 
 *Правила для диалогов проекта:*

@@ -14,6 +14,11 @@
 Если в экспортированной игре диалоги не находятся — добавить `*.dlg` в
 Export → Resources → «Filters to export non-resource files».
 
+Чтобы создавать и править `.dlg` прямо в Godot: Editor Settings → Docks → FileSystem →
+**TextFile Extensions** — добавить `dlg`. Тогда FileSystem → New → Text File… умеет создавать `.dlg`,
+а двойной клик открывает его во встроенном редакторе. Создавать диалог через
+New Resource → `DialogueResource` (.tres) тоже можно — текст пишется в поле `source` в инспекторе.
+
 ## Синтаксис `.dlg`
 
 Пояснения справа после `#` — только для этой справки: в файле комментарий пишется отдельной строкой,
@@ -103,6 +108,7 @@ runner.choose(i)                   # после реплики с вариант
 | `dialogue_parser.gd` | `.dlg` → плоский список инструкций + таблица узлов |
 | `dialogue_resource.gd` | `DialogueResource` — скомпилированный диалог |
 | `dialogue_format_loader.gd` | учит `load()` понимать `.dlg` |
+| `dialogue_format_saver.gd` | сохраняет `DialogueResource` обратно в `.dlg` (Duplicate / Save As в редакторе) |
 | `dialogue_runner.gd` | `DialogueRunner` — исполнение по шагам, без UI |
 | `dialogue_line.gd` | `DialogueLine` — одна реплика для показа |
 | `dialogue_manager.gd` | autoload `Dialogue` — старт, переменные, выражения |

@@ -2,7 +2,9 @@ class_name Shadow
 extends PlayerPawn
 
 ## Тень — второе тело игрока. Та же физика движения, что у Fighter
-## (бег, прыжки, стены), но свои компоненты: вместо катаны — GrabAttack.
+## (бег, прыжки, стены), но свои компоненты: вместо катаны — GrabAttack и Interactor.
+## ЛКМ: схватить врага рядом; если хватать некого — взаимодействовать с объектом
+## (рычаг и т.п.). Сквозь двери проходит (слой 6 не в маске) — можно дёрнуть рычаг за дверью.
 ## Живёт в реальном времени (unscaled_time), пока мир замедлен.
 ## Жизненным циклом (появление, передача управления, исчезновение)
 ## управляет ShadowAbility основного тела.
@@ -10,6 +12,7 @@ extends PlayerPawn
 signal grabbed(target: Node)
 
 @onready var grab_attack: GrabAttack = $GrabAttack
+@onready var interactor: Interactor = $Interactor
 
 
 func _ready() -> void:
@@ -18,7 +21,9 @@ func _ready() -> void:
 
 
 func _primary_action() -> void:
-	grab_attack.attack()
+	var dir := get_local_mouse_position()
+	if not grab_attack.attack(dir):
+		interactor.try_interact(dir)
 
 
 func _on_grabbed(target: Node) -> void:
