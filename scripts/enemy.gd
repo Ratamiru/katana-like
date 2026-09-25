@@ -22,7 +22,7 @@ enum State { IDLE, CHASE, ATTACK, STUNNED, GRABBED }
 @export var lose_range := 400.0 # дальше этого теряет интерес к игроку
 @export var attack_range := 40.0
 @export var attack_windup := 0.3 # сек замаха перед ударом — окно, чтобы игрок успел среагировать
-@export var sight_mask := 1 # слои, которые загораживают обзор (сплошные стены)
+@export_flags_2d_physics var sight_mask := Layers.SOLID # что загораживает обзор (стены, двери; платформы — нет)
 @export var drop_height := 24.0 # насколько игрок должен быть ниже/выше, чтобы спрыгнуть/запрыгнуть на платформу
 @export var clinch_window := 0.15 # последние сек замаха, которые тоже считаются ударом для клинча
 @export var stun_time := 1.0 # длительность оглушения после клинча

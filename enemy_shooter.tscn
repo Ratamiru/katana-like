@@ -13,7 +13,7 @@ height = 26.0
 
 [node name="EnemyShooter" type="CharacterBody2D"]
 collision_layer = 4
-collision_mask = 3
+collision_mask = 35
 script = ExtResource("1_shooter")
 max_health = 10
 speed = 140.0

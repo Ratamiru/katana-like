@@ -13,13 +13,15 @@ extends PointLight2D
 
 ## Все лампы на сцене — без групп и поиска по дереву.
 static var _all: Array[LightSource] = []
+## Уровень освещён целиком (LevelLighting.fully_lit) — любая точка считается светлой.
+static var level_fully_lit := false
 
 @export var radius := 160.0:
 	set(v):
 		radius = v
 		_apply_scale()
 @export var blocked_by_walls := true
-@export_flags_2d_physics var wall_mask := 1
+@export_flags_2d_physics var wall_mask := Layers.SOLID # что не пропускает свет (стены, двери)
 
 
 func _enter_tree() -> void:
@@ -38,6 +40,8 @@ func _ready() -> void:
 
 ## Освещена ли точка хоть одной включённой лампой.
 static func is_lit(point: Vector2) -> bool:
+	if level_fully_lit:
+		return true
 	for l in _all:
 		if l.lights(point):
 			return true

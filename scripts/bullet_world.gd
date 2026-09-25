@@ -37,7 +37,7 @@ extends Node2D
 
 static var current: BulletWorld
 
-@export var world_mask := 1 # слои, которые останавливают пули (сплошные стены; one-way платформы — нет)
+@export_flags_2d_physics var world_mask := Layers.SOLID # что останавливает пули: стены и двери/окна (one-way платформы — нет)
 @export var max_bullets := 2048
 @export var lifetime := 3.0 # сек, потом пуля исчезает
 @export var radius := 2.5 # для отрисовки и проверок аффекторов

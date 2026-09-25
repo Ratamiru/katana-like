@@ -30,7 +30,7 @@ fill_to = Vector2(1, 0.5)
 
 [node name="CharacterBody2D" type="CharacterBody2D" unique_id=1919862408]
 collision_layer = 8
-collision_mask = 3
+collision_mask = 35
 script = ExtResource("1_glpr6")
 max_health = 1
 clinch_effect = ExtResource("h_sparks")

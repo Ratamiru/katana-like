@@ -76,6 +76,7 @@ func finish() -> void:
 	level_finished.emit()
 	PlayerPawn.possess(null) # никто не получает инпут
 	Juice.reset()
+	Progress.complete_level(get_tree().current_scene.scene_file_path, next_level)
 	ScreenFX.transition_to(next_level)
 
 

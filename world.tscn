@@ -17,6 +17,7 @@
 [ext_resource type="PackedScene" path="res://level/npc.tscn" id="15_npc"]
 [ext_resource type="Resource" path="res://dialogues/old_man.dlg" id="16_old_man"]
 [ext_resource type="PackedScene" path="res://level/light_source.tscn" id="17_light"]
+[ext_resource type="Script" path="res://scripts/level/level_lighting.gd" id="18_lighting"]
 
 [sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_solid"]
 polygon = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
@@ -46,8 +47,9 @@ sources/0 = SubResource("TileSetAtlasSource_f3sb7")
 
 [node name="World" type="Node2D" unique_id=215178377]
 
-[node name="Darkness" type="CanvasModulate" parent="."]
+[node name="LevelLighting" type="CanvasModulate" parent="."]
 color = Color(0.16, 0.16, 0.22, 1)
+script = ExtResource("18_lighting")
 
 [node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=554085805]
 position = Vector2(-3, 19)
@@ -121,6 +123,19 @@ radius = 150.0
 [node name="LightPlatform" parent="." instance=ExtResource("17_light")]
 position = Vector2(253, -80)
 radius = 130.0
+
+[node name="LightArmored" parent="." instance=ExtResource("17_light")]
+position = Vector2(-60, -80)
+radius = 110.0
+
+[node name="LightUpper" parent="." instance=ExtResource("17_light")]
+position = Vector2(560, -100)
+radius = 150.0
+
+[node name="LeverLights" parent="." instance=ExtResource("9_lever")]
+position = Vector2(-190, -8)
+targets = Array[NodePath]([NodePath("../LightArmored")])
+start_on = true
 
 [node name="BulletWorld" type="Node2D" parent="." unique_id=368480397]
 script = ExtResource("5_bullets")

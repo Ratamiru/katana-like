@@ -26,7 +26,7 @@ enum FireMode { BURST, CONTINUOUS }
 @export var sight_range := 300.0 # игрок на свету — замечает так далеко во все стороны
 @export var dark_sight_range := 180.0 # игрок в темноте — только так далеко…
 @export var dark_cone_angle := 40.0 # …и только в конусе (град) вдоль ствола
-@export var sight_mask := 1 # что загораживает обзор (стены)
+@export_flags_2d_physics var sight_mask := Layers.SOLID # что загораживает обзор (стены, двери)
 @export var turn_speed := 180.0 # град/с поворота ствола
 @export var aim_tolerance := 6.0 # град: стреляет, только если ствол наведён точнее
 @export var warmup := 0.5 # сек предупреждения перед первой очередью

@@ -17,7 +17,7 @@ height = 26.0
 
 [node name="EnemyArmored" type="CharacterBody2D"]
 collision_layer = 4
-collision_mask = 3
+collision_mask = 35
 script = ExtResource("1_enemy")
 max_health = 20
 speed = 150.0

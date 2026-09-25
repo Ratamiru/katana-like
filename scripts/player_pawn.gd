@@ -18,6 +18,15 @@ extends Fighter
 static var possessed: PlayerPawn
 
 @onready var camera: Camera2D = get_node_or_null("Camera2D")
+## Косметический свет вокруг тела (НЕ LightSource — не делает игрока «освещённым» для врагов).
+@onready var view_light: PointLight2D = get_node_or_null("ViewLight")
+
+
+func _ready() -> void:
+	super()
+	# На полностью освещённом уровне (LevelLighting.fully_lit) свой свет не нужен.
+	if view_light:
+		view_light.visible = not LightSource.level_fully_lit
 
 
 ## Передать управление телу pawn.
