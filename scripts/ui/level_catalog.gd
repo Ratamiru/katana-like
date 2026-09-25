@@ -8,6 +8,7 @@ extends RefCounted
 
 const LEVELS := [ # {path, title}
 	{path = "res://world.tscn", title = "Уровень 1 — Пролог"},
+	{path = "res://levels/mansion.tscn", title = "Mansion"},
 ]
 
 

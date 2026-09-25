@@ -1,7 +1,7 @@
 [gd_scene format=4 uid="uid://ipj7vq8kwl3v"]
 
-[ext_resource type="Texture2D" uid="uid://sphygdpvujte" path="res://art/placeholder_tiles.png" id="1_f3sb7"]
 [ext_resource type="PackedScene" uid="uid://4n3gv2wu6qil" path="res://character.tscn" id="2_fj7yv"]
+[ext_resource type="TileSet" uid="uid://1fympmxph84u" path="res://art/tilesets/prototype.tres" id="2_ikiii"]
 [ext_resource type="PackedScene" path="res://enemy.tscn" id="3_enemy"]
 [ext_resource type="PackedScene" path="res://enemy_shooter.tscn" id="4_shooter"]
 [ext_resource type="Script" uid="uid://bhsut4f1cpx8x" path="res://scripts/bullet_world.gd" id="5_bullets"]
@@ -11,50 +11,24 @@
 [ext_resource type="PackedScene" path="res://level/lever.tscn" id="9_lever"]
 [ext_resource type="PackedScene" path="res://level/door.tscn" id="10_door"]
 [ext_resource type="PackedScene" path="res://level/level_exit.tscn" id="11_exit"]
-[ext_resource type="Script" path="res://scripts/level/level_goals.gd" id="12_goals"]
-[ext_resource type="Script" path="res://scripts/level/objectives/objective_kill.gd" id="13_obj_kill"]
-[ext_resource type="Script" path="res://scripts/level/objectives/objective_signal.gd" id="14_obj_signal"]
+[ext_resource type="Script" uid="uid://bugflrixqpvwv" path="res://scripts/level/level_goals.gd" id="12_goals"]
+[ext_resource type="Script" uid="uid://c67yebxlu2gbx" path="res://scripts/level/objectives/objective_kill.gd" id="13_obj_kill"]
+[ext_resource type="Script" uid="uid://be0rpfivfafbm" path="res://scripts/level/objectives/objective_signal.gd" id="14_obj_signal"]
 [ext_resource type="PackedScene" path="res://level/npc.tscn" id="15_npc"]
-[ext_resource type="Resource" path="res://dialogues/old_man.dlg" id="16_old_man"]
+[ext_resource type="Resource" uid="uid://fy5ik871posi" path="res://dialogues/old_man.dlg" id="16_old_man"]
 [ext_resource type="PackedScene" path="res://level/light_source.tscn" id="17_light"]
-[ext_resource type="Script" path="res://scripts/level/level_lighting.gd" id="18_lighting"]
-
-[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_solid"]
-polygon = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f3sb7"]
-texture = ExtResource("1_f3sb7")
-texture_region_size = Vector2i(32, 32)
-0:0/0 = 0
-0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, -16, 16, 16, 16, 16, -16)
-0:0/0/occlusion_layer_0/polygon_0/polygon = SubResource("OccluderPolygon2D_solid")
-1:0/0 = 0
-1:0/0/physics_layer_1/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
-1:0/0/physics_layer_1/polygon_0/one_way = true
-1:0/0/custom_data_0 = true
-2:0/0 = 0
-3:0/0 = 0
-
-[sub_resource type="TileSet" id="TileSet_f3sb7"]
-tile_size = Vector2i(32, 32)
-occlusion_layer_0/light_mask = 1
-physics_layer_0/collision_layer = 1
-physics_layer_1/collision_layer = 2
-physics_layer_1/collision_mask = 2
-custom_data_layer_0/name = "platform_through"
-custom_data_layer_0/type = 1
-sources/0 = SubResource("TileSetAtlasSource_f3sb7")
+[ext_resource type="Script" uid="uid://b1sv50c3t27ky" path="res://scripts/level/level_lighting.gd" id="18_lighting"]
 
 [node name="World" type="Node2D" unique_id=215178377]
 
-[node name="LevelLighting" type="CanvasModulate" parent="."]
+[node name="LevelLighting" type="CanvasModulate" parent="." unique_id=534832217]
 color = Color(0.16, 0.16, 0.22, 1)
 script = ExtResource("18_lighting")
 
 [node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=554085805]
 position = Vector2(-3, 19)
 tile_map_data = PackedByteArray("AAD//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAFAAAAAAAAAAAAAAAFAAEAAAAAAAAAAAAFAAIAAAAAAAAAAAAFAAMAAAAAAAAAAAAFAAQAAAAAAAAAAAAGAAQAAAAAAAAAAAAHAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAJAAQAAAAAAAAAAAAKAAAAAAAAAAAAAAAGAAAAAAABAAAAAAAHAAAAAAABAAAAAAAIAAAAAAABAAAAAAAKAAQAAAAAAAAAAAAJAAAAAAABAAAAAAAKAAMAAAAAAAAAAAAKAAIAAAAAAAAAAAAKAAEAAAAAAAAAAAAKAP//AAAAAAAAAAAKAP7/AAAAAAAAAAALAP7/AAAAAAAAAAAMAP7/AAAAAAAAAAANAP7/AAAAAAAAAAAOAP7/AAAAAAAAAAAPAP7/AAAAAAAAAAAUAP7/AAAAAAAAAAAVAP7/AAAAAAAAAAAPAP//AAAAAAAAAAAPAAAAAAAAAAAAAAAQAAEAAAAAAAAAAAARAAEAAAAAAAAAAAASAAEAAAAAAAAAAAATAAEAAAAAAAAAAAAUAAEAAAAAAAAAAAAVAAEAAAAAAAAAAAAWAAEAAAAAAAAAAAAXAAEAAAAAAAAAAAAYAAEAAAAAAAAAAAATAP7/AAAAAAAAAAASAP7/AAABAAAAAAARAP7/AAABAAAAAAAQAP7/AAABAAAAAAAWAP7/AAABAAAAAAAXAP7/AAABAAAAAAAYAP7/AAABAAAAAAAZAP7/AAABAAAAAAAZAAEAAAAAAAAAAAAaAAEAAAAAAAAAAAAaAAAAAAAAAAAAAAAaAP//AAAAAAAAAAAaAP7/AAAAAAAAAAAaAP3/AAAAAAAAAAAaAPz/AAAAAAAAAAAaAPv/AAAAAAAAAAAaAPr/AAAAAAAAAAAUAPv/AAAAAAAAAAAVAPv/AAAAAAAAAAAWAPv/AAAAAAAAAAAXAPv/AAAAAAAAAAATAPv/AAAAAAAAAAD+/wAAAAAAAAAAAAD9/wAAAAAAAAAAAAD8/wAAAAAAAAAAAAD7/wAAAAAAAAAAAAD6/wAAAAAAAAAAAAD5/wAAAAAAAAAAAAD4/wAAAAAAAAAAAAD3/wAAAAAAAAAAAAD2/wAAAAAAAAAAAAD1/wAAAAAAAAAAAAD0/wAAAAAAAAAAAAA=")
-tile_set = SubResource("TileSet_f3sb7")
+tile_set = ExtResource("2_ikiii")
 
 [node name="CharacterBody2D" parent="." unique_id=1919862408 instance=ExtResource("2_fj7yv")]
 position = Vector2(-235, -26)
@@ -94,45 +68,45 @@ position = Vector2(-150, -29)
 position = Vector2(-330, -8)
 targets = Array[NodePath]([NodePath("../Door")])
 
-[node name="LevelExit" parent="." instance=ExtResource("11_exit")]
+[node name="LevelExit" parent="." unique_id=1852792537 instance=ExtResource("11_exit")]
 position = Vector2(-385, -29)
 
-[node name="LevelGoals" type="Node" parent="."]
+[node name="LevelGoals" type="Node" parent="." unique_id=1317951640]
 script = ExtResource("12_goals")
 
-[node name="KillArmored" type="Node" parent="LevelGoals"]
+[node name="KillArmored" type="Node" parent="LevelGoals" unique_id=1622885648]
 script = ExtResource("13_obj_kill")
-description = "Убить бронированного"
 targets = Array[NodePath]([NodePath("../../EnemyArmored")])
+description = "Убить бронированного"
 
-[node name="PullLever" type="Node" parent="LevelGoals"]
+[node name="PullLever" type="Node" parent="LevelGoals" unique_id=907407394]
 script = ExtResource("14_obj_signal")
-description = "Открыть дверь рычагом"
 source = NodePath("../../Lever")
 signal_name = &"switched"
 first_arg = 1
+description = "Открыть дверь рычагом"
 
-[node name="OldMan" parent="." instance=ExtResource("15_npc")]
+[node name="OldMan" parent="." unique_id=1159393258 instance=ExtResource("15_npc")]
 position = Vector2(-290, -8)
 dialogue = ExtResource("16_old_man")
 
-[node name="LightStart" parent="." instance=ExtResource("17_light")]
+[node name="LightStart" parent="." unique_id=1919109892 instance=ExtResource("17_light")]
 position = Vector2(-230, -70)
 radius = 150.0
 
-[node name="LightPlatform" parent="." instance=ExtResource("17_light")]
+[node name="LightPlatform" parent="." unique_id=1630202124 instance=ExtResource("17_light")]
 position = Vector2(253, -80)
 radius = 130.0
 
-[node name="LightArmored" parent="." instance=ExtResource("17_light")]
+[node name="LightArmored" parent="." unique_id=328328462 instance=ExtResource("17_light")]
 position = Vector2(-60, -80)
 radius = 110.0
 
-[node name="LightUpper" parent="." instance=ExtResource("17_light")]
+[node name="LightUpper" parent="." unique_id=609572003 instance=ExtResource("17_light")]
 position = Vector2(560, -100)
 radius = 150.0
 
-[node name="LeverLights" parent="." instance=ExtResource("9_lever")]
+[node name="LeverLights" parent="." unique_id=1624674746 instance=ExtResource("9_lever")]
 position = Vector2(-190, -8)
 targets = Array[NodePath]([NodePath("../LightArmored")])
 start_on = true

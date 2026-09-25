@@ -1,0 +1,49 @@
+[gd_scene format=4 uid="uid://ddgxyj6m7p524"]
+
+[ext_resource type="TileSet" uid="uid://1fympmxph84u" path="res://art/tilesets/prototype.tres" id="1_tni4b"]
+[ext_resource type="PackedScene" path="res://level/door.tscn" id="2_phh2b"]
+[ext_resource type="PackedScene" path="res://level/lever.tscn" id="3_gcf0k"]
+[ext_resource type="PackedScene" path="res://level/npc.tscn" id="4_os4rb"]
+[ext_resource type="PackedScene" uid="uid://cmjk0vlfjdfu1" path="res://level/light_source.tscn" id="5_chx84"]
+[ext_resource type="Resource" uid="uid://dulf3sv2uld11" path="res://dialogues/concierge.dlg" id="5_njgnj"]
+[ext_resource type="PackedScene" uid="uid://4n3gv2wu6qil" path="res://character.tscn" id="6_chx84"]
+[ext_resource type="Resource" uid="uid://y0ag3qxhvvh8" path="res://dialogues/phone.dlg" id="6_nexci"]
+
+[node name="Mansion" type="Node2D" unique_id=833306728]
+
+[node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=722427107]
+tile_map_data = PackedByteArray("AAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAFAAAAAAAAAAAAAAAGAAAAAAAAAAAAAAAHAAAAAAAAAAAAAAAHAP3/AAAAAAAAAAAHAPz/AAAAAAAAAAAHAPv/AAAAAAAAAAAIAPv/AAAAAAAAAAAJAPv/AAAAAAAAAAAKAPv/AAAAAAAAAAALAPv/AAAAAAAAAAAMAPv/AAAAAAAAAAANAPv/AAAAAAAAAAAOAPv/AAAAAAAAAAAIAAAAAAAAAAAAAAAJAAAAAAAAAAAAAAAKAAAAAAAAAAAAAAALAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAANAAAAAAAAAAAAAAAOAAAAAAAAAAAAAAAPAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAARAAAAAAAAAAAAAAASAAAAAAAAAAAAAAAPAPv/AAAAAAAAAAAQAPv/AAAAAAAAAAARAPv/AAAAAAAAAAASAPv/AAAAAAAAAAATAPv/AAAAAAAAAAATAAAAAAAAAAAAAAAUAAAAAAAAAAAAAAAUAP//AAAAAAAAAAAUAP7/AAAAAAAAAAAUAP3/AAAAAAAAAAAUAPz/AAAAAAAAAAAUAPv/AAAAAAAAAAA=")
+tile_set = ExtResource("1_tni4b")
+
+[node name="Door" parent="." unique_id=1475258287 instance=ExtResource("2_phh2b")]
+position = Vector2(250, -33)
+
+[node name="Door2" parent="." unique_id=1176508053 instance=ExtResource("2_phh2b")]
+position = Vector2(13, -33)
+
+[node name="Lever" parent="." unique_id=756459782 instance=ExtResource("3_gcf0k")]
+position = Vector2(175, -9)
+targets = Array[NodePath]([NodePath("../Door")])
+
+[node name="Npc" parent="." unique_id=270872686 instance=ExtResource("4_os4rb")]
+position = Vector2(454, -18)
+dialogue = ExtResource("5_njgnj")
+
+[node name="Npc2" parent="." unique_id=1705140410 instance=ExtResource("4_os4rb")]
+position = Vector2(55, -15)
+dialogue = ExtResource("6_nexci")
+
+[node name="Label" type="Label" parent="Npc2" unique_id=1241560695]
+offset_left = -34.0
+offset_top = -43.0
+offset_right = 35.0
+offset_bottom = -20.0
+text = "телефон"
+
+[node name="LightSource" parent="." unique_id=1265998271 instance=ExtResource("5_chx84")]
+position = Vector2(430, -117)
+energy = 14.4
+
+[node name="CharacterBody2D" parent="." unique_id=1919862408 instance=ExtResource("6_chx84")]
+visible = false
+position = Vector2(160, -39)

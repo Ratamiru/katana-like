@@ -1,0 +1,29 @@
+[gd_resource type="TileSet" format=3 uid="uid://1fympmxph84u"]
+
+[ext_resource type="Texture2D" uid="uid://sphygdpvujte" path="res://art/placeholder_tiles.png" id="1_3j544"]
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_solid"]
+polygon = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f3sb7"]
+texture = ExtResource("1_3j544")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+0:0/0/occlusion_layer_0/polygon_0/polygon = SubResource("OccluderPolygon2D_solid")
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, -16, 16, 16, 16, 16, -16)
+1:0/0 = 0
+1:0/0/physics_layer_1/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+1:0/0/physics_layer_1/polygon_0/one_way = true
+1:0/0/custom_data_0 = true
+2:0/0 = 0
+3:0/0 = 0
+
+[resource]
+tile_size = Vector2i(32, 32)
+occlusion_layer_0/light_mask = 1
+physics_layer_0/collision_layer = 1
+physics_layer_1/collision_layer = 2
+physics_layer_1/collision_mask = 2
+custom_data_layer_0/name = "platform_through"
+custom_data_layer_0/type = 1
+sources/0 = SubResource("TileSetAtlasSource_f3sb7")
