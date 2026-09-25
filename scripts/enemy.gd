@@ -5,7 +5,8 @@ extends Fighter
 ## Другие типы (стрелок) наследуются и переопределяют _can_start_attack /
 ## _perform_attack / _should_approach.
 ##
-## IDLE — стоит, пока не увидит игрока (в радиусе sight_range и без стен между ними);
+## IDLE — стоит, пока не обнаружит игрока (Vision: на свету — круг sight_range,
+##        в темноте — конус dark_cone_angle / dark_sight_range по facing; без стен между ними);
 ## CHASE — бежит к игроку, перепрыгивает препятствия, спрыгивает с платформ, если игрок ниже,
 ##         и запрыгивает на платформу над собой, если игрок выше;
 ## ATTACK — в радиусе attack_range останавливается, замахивается (attack_windup) и бьёт;
@@ -14,7 +15,10 @@ extends Fighter
 
 enum State { IDLE, CHASE, ATTACK, STUNNED, GRABBED }
 
-@export var sight_range := 250.0
+@export var sight_range := 250.0 # игрок на свету — видит так далеко во все стороны
+@export var dark_sight_range := 140.0 # игрок в темноте — видит только так далеко…
+@export var dark_cone_angle := 70.0 # …и только в конусе (град) перед собой
+@export_enum("Влево:-1", "Вправо:1") var start_facing := 1 # куда смотрит, пока не встревожен
 @export var lose_range := 400.0 # дальше этого теряет интерес к игроку
 @export var attack_range := 40.0
 @export var attack_windup := 0.3 # сек замаха перед ударом — окно, чтобы игрок успел среагировать
@@ -33,6 +37,20 @@ var _grab_left := 0.0
 func _ready() -> void:
 	super()
 	add_to_group("enemy")
+	facing = start_facing
+
+
+func _process(_delta: float) -> void:
+	if get_tree().debug_collisions_hint:
+		queue_redraw()
+
+
+## Отладка: зона обнаружения, пока враг не встревожен.
+func _draw() -> void:
+	if not get_tree().debug_collisions_hint or state != State.IDLE or _target == null or not is_instance_valid(_target):
+		return
+	Vision.draw_debug(self, Vector2.ZERO, Vector2(facing, 0), LightSource.is_lit(_target.global_position),
+		sight_range, dark_sight_range, dark_cone_angle)
 
 
 func _update_intent(delta: float) -> void:
@@ -48,7 +66,8 @@ func _update_intent(delta: float) -> void:
 
 	match state:
 		State.IDLE:
-			if dist <= sight_range and _can_see(_target):
+			if Vision.detects(self, global_position, Vector2(facing, 0), _target,
+					sight_range, dark_sight_range, dark_cone_angle, sight_mask):
 				state = State.CHASE
 		State.CHASE:
 			if dist > lose_range:

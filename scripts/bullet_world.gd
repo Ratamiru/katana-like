@@ -66,6 +66,10 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	z_index = 10
+	# Пули рисуются без освещения: в тёмных зонах их должно быть видно всегда.
+	var mat := CanvasItemMaterial.new()
+	mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	material = mat
 
 
 # ── Создание ──

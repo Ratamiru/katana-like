@@ -40,6 +40,9 @@
 | `scripts/level/switch.gd` | `Switch` — база переключателей (`Area2D`, слой 5): `targets` → `set_active(on)`, режимы TOGGLE/ONCE/TIMED |
 | `scripts/level/lever.gd` | `Lever` (`extends Switch`) — рычаг, переключается ударом катаны |
 | `scripts/level/door.gd` | `Door` (`AnimatableBody2D`) — пример цели: открывается сдвигом |
+| `scripts/level/light_source.gd` | `LightSource` (`PointLight2D`) — лампа: свет + правило «здесь светло» для зрения врагов |
+| `scripts/vision.gd` | `Vision` — правила обнаружения врагами (свет → круг, темнота → конус) + отладочная отрисовка |
+| `level/light_source.tscn` | Сцена лампы |
 | `scripts/level/level_goals.gd` | `LevelGoals` — цели уровня и его завершение (`LevelGoals.current`) |
 | `scripts/level/level_exit.gd` | `LevelExit` (`Area2D`) — выход, открывается после обязательных целей |
 | `scripts/level/objectives/` | `Objective` (база), `ObjectiveKill`, `ObjectiveSignal` |
@@ -186,7 +189,7 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 
 Машина состояний в `_update_intent`:
 
-- **IDLE** — стоит. Переход в CHASE, если игрок ближе `sight_range` (250) и луч до него не упирается в стену (`sight_mask = 1`; платформы слоя 2 обзор не закрывают). Получив урон, тоже сразу переходит в CHASE.
+- **IDLE** — стоит, смотрит в `start_facing` (-1 влево / 1 вправо). Переход в CHASE, когда `Vision.detects(...)`: игрок на свету — ближе `sight_range` (250) в любую сторону; в темноте — ближе `dark_sight_range` (140) и в конусе `dark_cone_angle` (70°) по `facing`. В обоих случаях луч до игрока не должен упираться в стену (`sight_mask = 1`; платформы слоя 2 обзор не закрывают). См. «Зрение и свет». Получив урон, тоже сразу переходит в CHASE.
 - **CHASE** — бежит к игроку по X. Если игрок ниже на `drop_height` (24) и враг стоит на one-way платформе — **спрыгивает** за ним (`jump_requested + drop_requested`). Если игрок выше на `drop_height` и над врагом досягаемая one-way платформа (`has_platform_above()`) — **запрыгивает** на неё. Иначе, если на полу упёрся в стену — прыгает. Дальше `lose_range` (400) → IDLE. Ближе `attack_range` (40) и `MeleeAttack` готов → ATTACK.
 - **ATTACK** — стоит, жёлтая вспышка на время замаха `attack_windup` (0.3 с, окно для реакции игрока), затем `melee_attack.attack(направление_на_игрока)` → снова CHASE. Частоту ударов ограничивает `cooldown` его `MeleeAttack` (0.8 с). Последние `clinch_window` (0.15 с) замаха `is_attacking()` уже `true` — удар игрока в этот момент даёт клинч. Удар раньше — обычный урон, замах прерывается (→ CHASE).
 - **STUNNED** — после клинча: `stun_time` (1 с) стоит, не атакует, светится синим. Урон по нему проходит обычно. Потом → CHASE.
@@ -212,7 +215,7 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 
 Состояния:
 
-- **IDLE** → **WARMUP**, когда игрок ближе `sight_range` (300) и виден (луч по `sight_mask` от ствола). Жёлтая вспышка `warmup` (0.5 с) — предупреждение.
+- **IDLE** → **WARMUP**, когда `Vision.detects(...)` от ствола: игрок на свету — ближе `sight_range` (300); в темноте — ближе `dark_sight_range` (180) и в конусе `dark_cone_angle` (40°) вдоль ствола. Дальше (WARMUP/FIRING) турель ведёт цель просто по дальности и прямой видимости. Жёлтая вспышка `warmup` (0.5 с) — предупреждение.
 - **FIRING** — зависит от `fire_mode`:
   - `BURST` (по умолчанию) — очереди по `burst_count` (3) пули с интервалом `burst_interval` (0.08 с), между очередями `burst_cooldown` (0.7 с);
   - `CONTINUOUS` — без перерыва, по пуле каждые `fire_interval` (0.1 с), пока видит игрока и ствол наведён. Пули `bullet_speed` 500, урон 10, разброс ±2°, `hit_mask = 8`, вылетают из `Barrel/Muzzle`.
@@ -393,6 +396,38 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 
 Пример в `world.tscn`: `LevelGoals` (PARALLEL, EXIT) с `KillArmored` (убить `EnemyArmored`) и `PullLever` (`Lever.switched` с `TRUE_ONLY`); `LevelExit` на (-385, -29) слева от старта.
 
+## Зрение и свет (`Vision`, `LightSource`)
+
+Стелс-слой: в темноте враги видят хуже, и над их головами / за спиной можно проскочить (при круговой проверке дистанции так не выйдет).
+
+**`LightSource`** (`scripts/level/light_source.gd`, `level/light_source.tscn`, `extends PointLight2D`) — лампа: и визуальный свет, и игровое правило. `radius` (игровой радиус; под него подгоняется `texture_scale`, текстура по умолчанию — мягкое радиальное пятно), `blocked_by_walls` + `wall_mask` (стены/двери не пропускают свет — луч от лампы до точки). `LightSource.is_lit(point)` — static, перебирает все лампы (static-список `_all`, без групп). `set_active(on)` — включить/выключить, лампа может быть целью `Switch` (рычаг гасит свет).
+
+**`Vision`** (`scripts/vision.gd`, static-хелпер) — `detects(observer, eye, look_dir, target, sight_range, dark_range, dark_cone_deg, sight_mask)`:
+
+- освещённость проверяется **в точке цели** (игрок прячется в тени, как в стелс-играх);
+- на свету — круг `sight_range`; в темноте — `dark_range` и конус `dark_cone_deg` вокруг `look_dir`;
+- в любом случае нужна прямая видимость (`has_los`, луч по `sight_mask`, без самого наблюдателя).
+
+Конус влияет **только на обнаружение** (IDLE). Встревоженный враг/турель ведёт цель как раньше — темнота не сбрасывает погоню.
+
+| Кто | `look_dir` | На свету | В темноте |
+|---|---|---|---|
+| `Enemy` | `Vector2(facing, 0)`; до тревоги — `start_facing` | 250 | 140, конус 70° |
+| `Turret` | направление ствола | 300 | 180, конус 40° |
+
+Отладка: при Debug → Visible Collision Shapes невстревоженный враг/турель (IDLE) рисует зону обнаружения — жёлтый круг (игрок на свету) или синий конус (в темноте).
+
+В `world.tscn`: `LightStart` (-230, -70, r 150) — старт освещён; `LightPlatform` (253, -80, r 130) над врагом на платформе. Остальное — темнота.
+
+**Визуальная темнота и тени (косметика, геймплей не меняет):**
+
+- `world.tscn` → `Darkness` (`CanvasModulate`, `Color(0.16, 0.16, 0.22)`) — затемняет весь мир (канвас-слой 0). `ScreenFX`, окно диалогов и будущий HUD на своих `CanvasLayer` — не затемняются.
+- Окклюдеры: у сплошного тайла (`0:0`) в TileSet — окклюзионный слой `occlusion_layer_0` с квадратом 32×32; one-way платформы свет пропускают (как и взгляд врагов). `Door` — `LightOccluder2D`. Совпадает с правилом `LightSource.blocked_by_walls` (луч по слою 1).
+- Лампы (`light_source.tscn`) — `shadow_enabled`, мягкие тени (PCF5); спрайт лампочки `unshaded` — светится сам.
+- **Свет игрока** — `character.tscn` → `ViewLight` (обычный `PointLight2D` с тенями, радиус ~200 px): игрок видит вокруг себя, стены отбрасывают тени. **Это НЕ `LightSource`** — иначе игрок всегда был бы «на свету» и конусы врагов перестали бы работать. У тени — свой фиолетовый `ViewLight` (камера переходит на неё).
+- Читаемость: пули (`BulletWorld`, материал в `_ready`) и искры (`sparks.tscn`) — `CanvasItemMaterial.light_mode = UNSHADED`, видны в темноте. Кровь — освещается (в темноте темнее — ок).
+- Новое правило: всё, что игрок **обязан** видеть в темноте (снаряды, телеграфы атак), — `unshaded` или на своём свете.
+
 ## Диалоги (`addons/dialogue/`)
 
 Самостоятельный аддон — не зависит от кода игры, переносится в другой проект копированием папки + включением плагина **Dialogue** (добавляет autoload `Dialogue`; в этом проекте autoload и плагин уже прописаны в `project.godot`). Полная справка по синтаксису и API — `addons/dialogue/README.md`.
@@ -403,10 +438,10 @@ READY ──[shadow]──► CONTROLLING ──[attack: захват]──► 
 
 ```
 .dlg ──DialogueFormatLoader──► DialogueParser ──► DialogueResource {code, nodes, errors}
-                                                        │
+														│
 Dialogue.start(res, node, locals) ──► DialogueRunner ◄──┘   (исполняет «байткод» по _ip)
-          │                              │ next() → DialogueLine / choose(i)
-          └──► DialogueBalloon (UI) ─────┘
+		  │                              │ next() → DialogueLine / choose(i)
+		  └──► DialogueBalloon (UI) ─────┘
 ```
 
 - `DialogueFormatLoader` (`@tool`, `class_name` → регистрируется движком сам) — `.dlg` грузится как обычный ресурс: `load`, `preload`, `@export var d: DialogueResource`, ext_resource в сценах. Файл компилируется при загрузке; ошибки (неизвестный узел, битое выражение, лишний отступ) — в Output с номером строки.
@@ -441,6 +476,7 @@ Dialogue.start(res, node, locals) ──► DialogueRunner ◄──┘   (ис�
 - ScreenFX: состояние оглушения игрока (механики пока нет), «мало HP»; вынести `intensity` в настройки.
 - Пропы на слое 5 (ящики, лампы) с собственными `HitReaction`.
 - Цели: HUD списка целей (сигналы `LevelGoals` готовы), зона-триггер «дойти до точки», таймер «успеть за N сек», неуязвимость игрока во время затемнения.
+- Зрение: телеграфы врагов в темноте (жёлтая вспышка замаха/прицеливания через `modulate` в тени почти не видна — сделать unshaded-индикатор); флип спрайтов по `facing`; патрули/повороты врагов в IDLE; шум (удар, выстрел) как способ поднять тревогу; разбиваемые лампы.
 - Диалоги: портреты/эмоции по тегам (`line.tags`), звук печати, `wait` и ожидание async-вызовов в `do`, сохранение `Dialogue.vars` в сейв, подсветка синтаксиса `.dlg` в редакторе.
 - Переключатели: кнопки (`use` на E теперь занят NPC — кнопкам нужно не пересекаться с `DialogueTrigger`), нажимные плиты; другие цели (движущиеся платформы, свет, спавнеры); `set_active` у турели.
 - Пули: другие аффекторы (магнит, поле замедления), `MultiMeshInstance2D` при большом количестве.
@@ -469,3 +505,5 @@ Dialogue.start(res, node, locals) ──► DialogueRunner ◄──┘   (ис�
 - **2026-09-24** — Система диалогов — переносимый аддон `addons/dialogue/`: текстовый формат `.dlg` (узлы, выборы с `[if]`/`[once]`, `if/elif/else`, `set`, `do`, `{подстановки}`, теги), загрузчик ресурса, компиляция в плоский «байткод», `DialogueRunner`, autoload `Dialogue` (переменные, выражения, пауза), стандартное окно `DialogueBalloon`, `DialogueTrigger`. Плагин включён в `project.godot`. Демо: NPC `level/npc.tscn` + `dialogues/old_man.dlg` в `world.tscn` (может открыть дверь). Действие `use` (E) теперь — разговор с NPC.
 - **2026-09-24** — Ревью диалогов под проект: `scripts/level/npc.gd` (нельзя заговорить, управляя тенью), `old_man.dlg` читает состояние двери из мира (`node("Lever").is_on`) и открывает её через рычаг — после рестарта диалог не «врёт», рычаг и дверь не расходятся. Раздел «Правила для диалогов проекта».
 - **2026-09-24** — Слияние ветки диалогов в master. Связка систем: если старик открывает дверь через рычаг (`Lever.set_on(true)`), засчитывается цель `PullLever` (`ObjectiveSignal` на `Lever.switched`). Ресурсы NPC в `world.tscn` перенумерованы (`15_npc`, `16_old_man`), чтобы не пересекаться с целями уровня.
+- **2026-09-25** — Зрение и свет: `LightSource` (лампа = свет + правило освещённости, `set_active` для `Switch`), `Vision` (на свету — круг `sight_range`, в темноте — конус `dark_cone_angle` / `dark_sight_range`, только для обнаружения). `Enemy.start_facing`, новые параметры у `Enemy` и `Turret`, отладочная отрисовка зоны обнаружения. Две лампы в `world.tscn`.
+- **2026-09-25** — Косметическая темнота и тени: `CanvasModulate` на уровне, окклюдеры на сплошных тайлах и двери, тени у ламп, `ViewLight` у игрока и тени (не `LightSource`). Пули и искры — unshaded.

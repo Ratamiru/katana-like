@@ -16,12 +16,17 @@
 [ext_resource type="Script" path="res://scripts/level/objectives/objective_signal.gd" id="14_obj_signal"]
 [ext_resource type="PackedScene" path="res://level/npc.tscn" id="15_npc"]
 [ext_resource type="Resource" path="res://dialogues/old_man.dlg" id="16_old_man"]
+[ext_resource type="PackedScene" path="res://level/light_source.tscn" id="17_light"]
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_solid"]
+polygon = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_f3sb7"]
 texture = ExtResource("1_f3sb7")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
 0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-16, -16, -16, 16, 16, 16, 16, -16)
+0:0/0/occlusion_layer_0/polygon_0/polygon = SubResource("OccluderPolygon2D_solid")
 1:0/0 = 0
 1:0/0/physics_layer_1/polygon_0/points = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
 1:0/0/physics_layer_1/polygon_0/one_way = true
@@ -31,6 +36,7 @@ texture_region_size = Vector2i(32, 32)
 
 [sub_resource type="TileSet" id="TileSet_f3sb7"]
 tile_size = Vector2i(32, 32)
+occlusion_layer_0/light_mask = 1
 physics_layer_0/collision_layer = 1
 physics_layer_1/collision_layer = 2
 physics_layer_1/collision_mask = 2
@@ -39,6 +45,9 @@ custom_data_layer_0/type = 1
 sources/0 = SubResource("TileSetAtlasSource_f3sb7")
 
 [node name="World" type="Node2D" unique_id=215178377]
+
+[node name="Darkness" type="CanvasModulate" parent="."]
+color = Color(0.16, 0.16, 0.22, 1)
 
 [node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=554085805]
 position = Vector2(-3, 19)
@@ -104,6 +113,14 @@ first_arg = 1
 [node name="OldMan" parent="." instance=ExtResource("15_npc")]
 position = Vector2(-290, -8)
 dialogue = ExtResource("16_old_man")
+
+[node name="LightStart" parent="." instance=ExtResource("17_light")]
+position = Vector2(-230, -70)
+radius = 150.0
+
+[node name="LightPlatform" parent="." instance=ExtResource("17_light")]
+position = Vector2(253, -80)
+radius = 130.0
 
 [node name="BulletWorld" type="Node2D" parent="." unique_id=368480397]
 script = ExtResource("5_bullets")

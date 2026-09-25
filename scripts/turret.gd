@@ -23,7 +23,9 @@ enum State { IDLE, WARMUP, FIRING, JAMMED }
 enum FireMode { BURST, CONTINUOUS }
 
 @export var max_health := 10
-@export var sight_range := 300.0
+@export var sight_range := 300.0 # игрок на свету — замечает так далеко во все стороны
+@export var dark_sight_range := 180.0 # игрок в темноте — только так далеко…
+@export var dark_cone_angle := 40.0 # …и только в конусе (град) вдоль ствола
 @export var sight_mask := 1 # что загораживает обзор (стены)
 @export var turn_speed := 180.0 # град/с поворота ствола
 @export var aim_tolerance := 6.0 # град: стреляет, только если ствол наведён точнее
@@ -69,7 +71,12 @@ func _physics_process(delta: float) -> void:
 			state = State.IDLE
 		return
 
-	var sees := _sees_target()
+	# Заметить (из IDLE) — по правилам Vision (свет/конус вдоль ствола);
+	# уже встревоженная турель ведёт цель по дальности и прямой видимости.
+	var sees := _sees_target() if state != State.IDLE else Vision.detects(self, _barrel.global_position,
+		Vector2.RIGHT.rotated(_barrel.global_rotation), _target, sight_range, dark_sight_range, dark_cone_angle, sight_mask)
+	if get_tree().debug_collisions_hint:
+		queue_redraw()
 	if not sees:
 		state = State.IDLE
 		return
@@ -96,6 +103,14 @@ func _physics_process(delta: float) -> void:
 				else:
 					_shots_left = burst_count
 					_timer = burst_cooldown
+
+
+## Отладка: зона обнаружения, пока турель не встревожена.
+func _draw() -> void:
+	if not get_tree().debug_collisions_hint or state != State.IDLE or _target == null or not is_instance_valid(_target):
+		return
+	Vision.draw_debug(self, _barrel.position, Vector2.RIGHT.rotated(_barrel.rotation),
+		LightSource.is_lit(_target.global_position), sight_range, dark_sight_range, dark_cone_angle)
 
 
 func _sees_target() -> bool:

@@ -408,6 +408,31 @@ Autoload-оверлей: `CanvasLayer` (слой 100) → один `ColorRect` �
 - Время реальное; `intensity = 0` выключает оверлей (доступность).
 - События — через `Juice`, длительные состояния — владелец состояния сам делает `enter/exit`.
 
+= Зрение и свет
+
+#figure(canvas(length: 0.95cm, {
+  import draw: *
+  // на свету
+  circle((0, 0), radius: 2.5, fill: rgb("#fef9c3"), stroke: (paint: rgb("#ca8a04"), dash: "dashed"))
+  box((0, 0), "e1", [враг], bg: c-leaf, w: 1.2, h: 0.6)
+  content((0, -2.9), text(size: 8pt)[игрок *на свету*: круг `sight_range`])
+  // в темноте
+  let o = (8.5, 0)
+  let half = 35deg
+  line(o, (rel: (calc.cos(half) * 3.2, calc.sin(half) * 3.2), to: o), (rel: (calc.cos(-half) * 3.2, calc.sin(-half) * 3.2), to: o), close: true, fill: rgb("#dbeafe"), stroke: rgb("#2563eb"))
+  box(o, "e2", [враг →], bg: c-leaf, w: 1.4, h: 0.6)
+  content((9.8, 2.2), text(size: 7.5pt, fill: ink)[здесь можно\ перепрыгнуть])
+  arrow((9.3, 1.9), (8.5, 1.1), dashed: true)
+  content((8.5, -2.9), text(size: 8pt)[игрок *в темноте*: конус `dark_cone_angle`, `dark_sight_range`])
+}), caption: [`Vision.detects`: освещённость проверяется в точке игрока (`LightSource.is_lit`). Прямая видимость нужна всегда.])
+
+- `LightSource` (`PointLight2D`) — лампа: `radius`, свет не проходит сквозь стены (`blocked_by_walls`); `set_active(on)` — цель для `Switch`.
+- Конус влияет только на обнаружение (IDLE); встревоженный враг ведёт игрока как раньше.
+- `Enemy`: `start_facing`, 250 на свету / 140 и 70° в темноте. `Turret`: конус вдоль ствола, 300 / 180 и 40°.
+- Отладка — Visible Collision Shapes: круг (цель на свету) или конус (в темноте).
+
+*Визуально (косметика):* `CanvasModulate` затемняет уровень; окклюдеры на сплошных тайлах и двери; лампы с тенями. У игрока и тени — свой `ViewLight` (обычный `PointLight2D`, *не* `LightSource`: иначе игрок всегда «на свету»). Пули и искры — `unshaded`, видны в темноте.
+
 = Уровень: переключатели и цели
 
 #figure(canvas(length: 0.95cm, {

@@ -7,6 +7,9 @@ size = Vector2(12, 64)
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_door"]
 
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_door"]
+polygon = PackedVector2Array(-6, -32, 6, -32, 6, 32, -6, 32)
+
 [node name="Door" type="AnimatableBody2D"]
 collision_mask = 0
 script = ExtResource("1_door")
@@ -18,3 +21,6 @@ shape = SubResource("RectangleShape2D_door")
 self_modulate = Color(0.55, 0.4, 0.25, 1)
 scale = Vector2(12, 64)
 texture = SubResource("PlaceholderTexture2D_door")
+
+[node name="Occluder" type="LightOccluder2D" parent="."]
+occluder = SubResource("OccluderPolygon2D_door")

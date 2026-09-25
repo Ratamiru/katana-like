@@ -4,7 +4,11 @@
 offsets = PackedFloat32Array(0, 0.5, 1)
 colors = PackedColorArray(1, 1, 0.9, 1, 1, 0.8, 0.3, 1, 1, 0.5, 0.1, 0)
 
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_unshaded"]
+light_mode = 1
+
 [node name="Sparks" type="CPUParticles2D"]
+material = SubResource("CanvasItemMaterial_unshaded")
 emitting = false
 amount = 10
 lifetime = 0.25
